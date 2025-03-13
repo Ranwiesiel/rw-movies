@@ -11,7 +11,7 @@ const Movie = () => {
 
   useEffect(() => {
     setIsLoading(true)
-    fetch('/api/movies?limit=all')
+    fetch('https://imdb.sesatnime.serv00.net/api/movies?limit=all')
       .then(r => {
         if (!r.ok) {
           throw new Error(`HTTP error! Status: ${r.status}`)
@@ -78,7 +78,7 @@ const Movie = () => {
               filteredMovie.map((movie, index) => (
                 <ListItem 
                   key={index} 
-                  coverUrl={movie.poster_path} 
+                  // coverUrl={movie.poster_path} 
                   id={movie.id} 
                   title={movie.title || 'Untitled'} 
                   rating={movie.vote_average || 'N/A'}
