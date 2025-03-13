@@ -1,5 +1,5 @@
-import cacheImage from '../utils/CacheImage'
-import getImageFromCache from '../utils/GetImageCache'
+// import cacheImage from '../utils/CacheImage'
+// import getImageFromCache from '../utils/GetImageCache'
 import { useState, useEffect } from 'react'
 
 const ListItem = (props) => {
