@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import Input from '../components/Input'
 import ListItem from '../components/ListItem'
 import Container from '../components/Container'
+import { LIST_MOVIES } from '../utils/Endpoint'
 
 const Movie = () => {
   const [movies, setMovies] = useState([]) // Initialize as empty array
@@ -11,7 +12,7 @@ const Movie = () => {
 
   useEffect(() => {
     setIsLoading(true)
-    fetch('https://imdb.sesatnime.serv00.net/api/movies?limit=all')
+    fetch(LIST_MOVIES)
       .then(r => {
         if (!r.ok) {
           throw new Error(`HTTP error! Status: ${r.status}`)
