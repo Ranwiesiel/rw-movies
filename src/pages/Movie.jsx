@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import Input from '../components/Input'
 import ListItem from '../components/ListItem'
 import Container from '../components/Container'
-import { LIST_MOVIES } from '../utils/Endpoint'
+import { LIST_MOVIE } from '../utils/Endpoint'
 
 const Movie = () => {
   const [movies, setMovies] = useState([]) // Initialize as empty array
@@ -12,7 +12,7 @@ const Movie = () => {
 
   useEffect(() => {
     setIsLoading(true)
-    fetch(LIST_MOVIES)
+    fetch(LIST_MOVIE)
       .then(r => {
         if (!r.ok) {
           throw new Error(`HTTP error! Status: ${r.status}`)
