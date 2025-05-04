@@ -1,9 +1,10 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
+import SEO from '../utils/SEO'
 import Input from '../components/Input'
 import ListItem from '../components/ListItem'
 import Container from '../components/Container'
 import Pagination from '../components/Pagination'
-import { PAGINATED_TV_SHOWS } from '../utils/Endpoint'
+import { PAGINATED_TV_SHOWS, SEARCH_TV_SHOWS, BASE_IMG_URL, getHeaders } from '../utils/Endpoint'
 
 const storageManager = {
   isStorageAvailable() {
@@ -68,49 +69,49 @@ const storageManager = {
 
 const TvShows = () => {
   const [tvShows, setTvShows] = useState([])
-  const [allTvShows, setAllTvShows] = useState([])
   const [keyword, setKeyword] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [isLoading, setIsLoading] = useState(true)
-  const [isSearching, setIsSearching] = useState(false)
   const [error, setError] = useState(null)
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
+  const [isSearchMode, setIsSearchMode] = useState(false)
   const searchInputRef = useRef(null)
 
   const fetchTvShows = useCallback((pageNum = 1) => {
     setIsLoading(true)
     setError(null)
     
-    const MAX_API_PAGE = 500;
+    const MAX_API_PAGE = 500; // TMDB API limit
     const validatedPage = Math.min(pageNum, MAX_API_PAGE);
     const apiUrl = PAGINATED_TV_SHOWS(validatedPage)
     
     console.log("Fetching TV shows from:", apiUrl);
     
-    const cachedTvShowsData = localStorage.getItem('cachedTvShows');
-    const cachedTimestamp = localStorage.getItem('cachedTvShowsTimestamp');
-    const cacheExpiry = 30 * 60 * 1000;
+    const cachedKey = `cachedTvShows_${validatedPage}`;
+    const cachedTvShowsData = localStorage.getItem(cachedKey);
+    const cachedTimestamp = localStorage.getItem(`${cachedKey}_timestamp`);
+    const cacheExpiry = 30 * 60 * 1000; // 30 minutes
     
     if (cachedTvShowsData && cachedTimestamp) {
       const currentTime = new Date().getTime();
       if (currentTime - parseInt(cachedTimestamp) < cacheExpiry) {
         try {
           const parsedData = JSON.parse(cachedTvShowsData);
-          if (parsedData.page === validatedPage) {
-            console.log("Using cached TV shows data");
-            setTvShows(parsedData.results);
-            setTotalPages(parsedData.totalPages);
-            setIsLoading(false);
-            return;
-          }
+          console.log("Using cached TV shows data");
+          setTvShows(parsedData.results);
+          setTotalPages(parsedData.total_pages > MAX_API_PAGE ? MAX_API_PAGE : parsedData.total_pages);
+          setIsLoading(false);
+          return;
         } catch (err) {
           console.error("Error parsing cached data", err);
         }
       }
     }
     
-    fetch(apiUrl)
+    fetch(apiUrl, {
+      headers: getHeaders()
+    })
       .then(r => {
         if (!r.ok) {
           throw new Error(`HTTP error! Status: ${r.status}`)
@@ -130,12 +131,8 @@ const TvShows = () => {
           
           setTvShows(response.results)
           
-          const reportedPages = response.total_pages ? Number(response.total_pages) :
-                              (response.total_results ? Math.ceil(Number(response.total_results) / 20) : 1);
-                              
-          const actualTotalPages = !isNaN(reportedPages) && reportedPages > 0 
-            ? Math.min(reportedPages, MAX_API_PAGE) 
-            : 1;
+          const reportedPages = response.total_pages || 1;
+          const actualTotalPages = Math.min(reportedPages, MAX_API_PAGE);
           
           setTotalPages(actualTotalPages);
           
@@ -145,17 +142,17 @@ const TvShows = () => {
           }
           
           const cacheData = {
-            page: validatedPage,
             results: response.results,
-            totalPages: actualTotalPages
+            total_pages: response.total_pages
           };
-          storageManager.safeSet('cachedTvShows', JSON.stringify(cacheData));
-          storageManager.safeSet('cachedTvShowsTimestamp', new Date().getTime().toString());
+          storageManager.safeSet(cachedKey, JSON.stringify(cacheData));
+          storageManager.safeSet(`${cachedKey}_timestamp`, new Date().getTime().toString());
           
+          // Preload images for better UX
           response.results.forEach(show => {
             if (show.poster_path) {
               const img = new Image();
-              img.src = `https://image.tmdb.org/t/p/w500${show.poster_path}`;
+              img.src = `${BASE_IMG_URL}${show.poster_path}`;
             }
           });
         } else {
@@ -175,18 +172,26 @@ const TvShows = () => {
       })
   }, [])
 
-  const fetchAllTvShows = useCallback(async () => {
-    const cachedSearchData = localStorage.getItem(`searchCache_tvShow_${searchTerm.toLowerCase()}`);
-    const cachedTimestamp = localStorage.getItem(`searchCache_tvShow_${searchTerm.toLowerCase()}_timestamp`);
-    const cacheExpiry = 60 * 60 * 1000;
+  const searchTvShows = useCallback((query, pageNum = 1) => {
+    if (!query.trim()) return;
     
-    if (cachedSearchData && cachedTimestamp && searchTerm) {
+    setIsLoading(true);
+    setError(null);
+    
+    const cachedKey = `searchCache_tvShow_${query.toLowerCase()}_${pageNum}`;
+    const cachedData = localStorage.getItem(cachedKey);
+    const cachedTimestamp = localStorage.getItem(`${cachedKey}_timestamp`);
+    const cacheExpiry = 30 * 60 * 1000; // 30 minutes
+    
+    if (cachedData && cachedTimestamp) {
       const currentTime = new Date().getTime();
       if (currentTime - parseInt(cachedTimestamp) < cacheExpiry) {
         try {
-          const parsedData = JSON.parse(cachedSearchData);
-          setAllTvShows(parsedData);
-          setIsSearching(false);
+          const parsedData = JSON.parse(cachedData);
+          console.log("Using cached search data");
+          setTvShows(parsedData.results);
+          setTotalPages(Math.min(parsedData.total_pages, 500)); // TMDB API limit
+          setIsLoading(false);
           return;
         } catch (err) {
           console.error("Error parsing cached search data", err);
@@ -194,83 +199,71 @@ const TvShows = () => {
       }
     }
     
-    setIsSearching(true)
-    setError(null)
-    setAllTvShows([])
+    const searchUrl = SEARCH_TV_SHOWS(query, pageNum);
+    console.log("Searching TV shows from:", searchUrl);
     
-    try {
-      let allResults = [];
-      let currentPage = 1;
-      let hasMorePages = true;
-      const fetchLimit = 100;
-      
-      while (hasMorePages && currentPage <= fetchLimit) {
-        const apiUrl = PAGINATED_TV_SHOWS(currentPage);
-        const response = await fetch(apiUrl);
-        
+    fetch(searchUrl, {
+      headers: getHeaders()
+    })
+      .then(response => {
         if (!response.ok) {
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
-        
-        const data = await response.json();
-        
-        if (data && data.results && data.results.length > 0) {
-          allResults = [...allResults, ...data.results];
-          currentPage++;
+        return response.json();
+      })
+      .then(data => {
+        if (data && Array.isArray(data.results)) {
+          setTvShows(data.results);
+          setTotalPages(Math.min(data.total_pages, 500));
           
-          if (currentPage % 5 === 0) {
-            setAllTvShows(prevShows => [...prevShows, ...data.results]);
-          }
+          // Cache search results
+          storageManager.safeSet(cachedKey, JSON.stringify(data));
+          storageManager.safeSet(`${cachedKey}_timestamp`, new Date().getTime().toString());
           
+          // Preload images
           data.results.forEach(show => {
             if (show.poster_path) {
               const img = new Image();
-              img.src = `https://image.tmdb.org/t/p/w500${show.poster_path}`;
+              img.src = `${BASE_IMG_URL}${show.poster_path}`;
             }
           });
-          
-          if (!data.total_pages || data.page >= Math.min(data.total_pages, 500)) {
-            hasMorePages = false;
-          }
         } else {
-          hasMorePages = false;
+          setTvShows([]);
+          setTotalPages(1);
+          console.error('Unexpected search response format:', data);
+          setError('Unexpected search response format. The server might be down or the API format has changed.');
         }
-      }
-      
-      setAllTvShows(allResults);
-      
-      if (searchTerm) {
-        storageManager.safeSet(`searchCache_tvShow_${searchTerm.toLowerCase()}`, JSON.stringify(allResults));
-        storageManager.safeSet(`searchCache_tvShow_${searchTerm.toLowerCase()}_timestamp`, new Date().getTime().toString());
-      }
-      
-      setIsSearching(false);
-    } catch (err) {
-      console.error('Error fetching all TV shows for search:', err);
-      setError(err.message);
-      setIsSearching(false);
-    }
-  }, [searchTerm]);
+        setIsLoading(false);
+      })
+      .catch(err => {
+        console.error('Error searching TV shows:', err);
+        setError(`Failed to search TV shows. Please check your internet connection or try again later. (${err.message})`);
+        setTvShows([]);
+        setTotalPages(1);
+        setIsLoading(false);
+      });
+  }, []);
 
   useEffect(() => {
-    fetchTvShows(page);
-  }, [page, fetchTvShows]);
+    if (searchTerm) {
+      setIsSearchMode(true);
+      searchTvShows(searchTerm, page);
+    } else {
+      setIsSearchMode(false);
+      fetchTvShows(page);
+    }
+  }, [page, searchTerm, fetchTvShows, searchTvShows]);
 
   const handleInputChange = (e) => {
     setKeyword(e.target.value);
   };
 
   const executeSearch = () => {
-    setSearchTerm(keyword);
-    
-    if (!keyword) {
-      setAllTvShows([]);
-      fetchTvShows(page);
-      return;
-    }
-    
-    if (allTvShows.length === 0) {
-      fetchAllTvShows();
+    if (keyword.trim()) {
+      setSearchTerm(keyword);
+      setPage(1); // Reset to first page for new searches
+    } else {
+      setSearchTerm('');
     }
   };
 
@@ -279,12 +272,6 @@ const TvShows = () => {
       executeSearch();
     }
   };
-
-  useEffect(() => {
-    if (searchTerm && allTvShows.length === 0) {
-      fetchAllTvShows();
-    }
-  }, [searchTerm, allTvShows.length, fetchAllTvShows]);
 
   const handlePageChange = (newPage) => {
     if (newPage >= 1) {
@@ -298,16 +285,6 @@ const TvShows = () => {
       setPage(1);
     }
   };
-
-  const filteredTvShows = useMemo(() => {
-    return searchTerm
-      ? allTvShows.filter((show) => 
-          show && 
-          show.name && 
-          show.name.toLowerCase().includes(searchTerm.toLowerCase())
-        )
-      : tvShows;
-  }, [searchTerm, allTvShows, tvShows]);
   
   const clearCache = () => {
     const keysToRemove = [];
@@ -324,6 +301,12 @@ const TvShows = () => {
 
   return (
     <>
+      <SEO 
+        title="Discover TV Shows"
+        description="Find popular series, anime, and TV shows from around the world. Explore trending shows or search for your favorites."
+        keywords="tv shows, series, popular tv shows, tv series, anime"
+      />
+      
       <div style={{
          background: `linear-gradient(rgba(0,0,0,.5), rgba(0,0,0,.7)), url('https://images.unsplash.com/photo-1522869635100-9f4c5e86aa37?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80')`,
          backgroundPosition: 'center',
@@ -370,24 +353,24 @@ const TvShows = () => {
       </div>
 
       <Container>
-        {(isLoading || isSearching) && (
+        {isLoading && (
           <div className='py-16 text-center'>
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mb-4"></div>
             <p>
-              {isSearching 
-                ? `Searching across all TV shows (${allTvShows.length} loaded so far)...` 
+              {isSearchMode 
+                ? `Searching for "${searchTerm}"...` 
                 : "Loading TV shows..."}
             </p>
           </div>
         )}
         
-        {error && !isLoading && !isSearching && (
+        {error && !isLoading && (
           <div className='py-12 text-center'>
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded max-w-md mx-auto">
               <p className="font-bold">Error loading TV shows</p>
               <p className="text-sm">{error}</p>
               <button 
-                onClick={() => searchTerm ? fetchAllTvShows() : fetchTvShows(page)} 
+                onClick={() => searchTerm ? searchTvShows(searchTerm, page) : fetchTvShows(page)} 
                 className="mt-3 bg-red-100 hover:bg-red-200 text-red-800 font-semibold py-2 px-4 rounded text-sm"
               >
                 Try Again
@@ -396,29 +379,27 @@ const TvShows = () => {
           </div>
         )}
         
-        {!isLoading && !isSearching && !error && (
+        {!isLoading && !error && (
           <>
             <div className='py-8'>
               <div className="flex flex-col sm:flex-row justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-gray-800 mb-2 sm:mb-0">
                   {searchTerm 
-                    ? `Search results for "${searchTerm}" (${filteredTvShows.length} TV shows)` 
+                    ? `Search results for "${searchTerm}" (${tvShows.length} TV shows)` 
                     : 'Popular TV Shows'}
                 </h2>
-                {!searchTerm && (
-                  <p className="text-gray-600">
-                    {page > totalPages ? (
-                      <span className="text-red-600">Page {page} exceeds maximum of {totalPages}</span>
-                    ) : (
-                      `Page ${page} of ${totalPages}`
-                    )}
-                  </p>
-                )}
+                <p className="text-gray-600">
+                  {page > totalPages ? (
+                    <span className="text-red-600">Page {page} exceeds maximum of {totalPages}</span>
+                  ) : (
+                    `Page ${page} of ${totalPages}`
+                  )}
+                </p>
               </div>
               
               <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'>
-                {filteredTvShows.length > 0 ? (
-                  filteredTvShows.map((show) => (
+                {tvShows.length > 0 ? (
+                  tvShows.map((show) => (
                     <ListItem 
                       key={show.id}
                       posterPath={show.poster_path}
@@ -437,7 +418,7 @@ const TvShows = () => {
                         onClick={() => {
                           setKeyword('');
                           setSearchTerm('');
-                          fetchTvShows(1);
+                          setPage(1);
                         }} 
                         className="bg-blue-100 hover:bg-blue-200 text-blue-800 font-semibold py-2 px-4 rounded"
                       >
@@ -448,12 +429,12 @@ const TvShows = () => {
                 )}
               </div>
               
-              {!searchTerm && filteredTvShows.length > 0 && (
+              {tvShows.length > 0 && (
                 <Pagination 
                   page={page}
                   totalPages={totalPages}
                   onPageChange={handlePageChange}
-                  itemsPerPage={filteredTvShows.length}
+                  itemsPerPage={tvShows.length}
                 />
               )}
             </div>

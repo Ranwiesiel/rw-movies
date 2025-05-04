@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import SEO from '../utils/SEO';
 import Container from '../components/Container';
 import SeasonEpisodes from '../components/SeasonEpisodes';
-import { BASE_API } from '../utils/Endpoint';
+import { BASE_API, TV_DETAILS, BASE_IMG_URL, getHeaders } from '../utils/Endpoint';
 
 const TvShowDetails = () => {
   const { id } = useParams();
@@ -18,8 +19,30 @@ const TvShowDetails = () => {
       setError(null);
       
       try {
-        // Always use the details endpoint for full TV show information
-        const response = await fetch(`${BASE_API}/tv/${id}/details`);
+        const cachedKey = `tvShowDetails_${id}`;
+        const cachedData = localStorage.getItem(cachedKey);
+        const cachedTimestamp = localStorage.getItem(`${cachedKey}_timestamp`);
+        const cacheExpiry = 60 * 60 * 1000; // 1 hour
+        
+        if (cachedData && cachedTimestamp) {
+          const currentTime = new Date().getTime();
+          if (currentTime - parseInt(cachedTimestamp) < cacheExpiry) {
+            try {
+              const parsedData = JSON.parse(cachedData);
+              console.log("Using cached TV show details");
+              setTvShow(parsedData);
+              setIsLoading(false);
+              return;
+            } catch (err) {
+              console.error("Error parsing cached data", err);
+            }
+          }
+        }
+        
+        // Use the TV_DETAILS endpoint function with authorization headers
+        const response = await fetch(TV_DETAILS(id), {
+          headers: getHeaders()
+        });
         
         if (!response.ok) {
           throw new Error(`HTTP error! Status: ${response.status}`);
@@ -27,6 +50,20 @@ const TvShowDetails = () => {
         
         const data = await response.json();
         setTvShow(data);
+        
+        // Cache the details
+        localStorage.setItem(cachedKey, JSON.stringify(data));
+        localStorage.setItem(`${cachedKey}_timestamp`, new Date().getTime().toString());
+        
+        // Preload images for better UX
+        if (data.backdrop_path) {
+          const backdropImg = new Image();
+          backdropImg.src = `https://image.tmdb.org/t/p/original${data.backdrop_path}`;
+        }
+        if (data.poster_path) {
+          const posterImg = new Image();
+          posterImg.src = `${BASE_IMG_URL}${data.poster_path}`;
+        }
       } catch (err) {
         console.error('Error fetching TV show details:', err);
         setError(err.message);
@@ -40,46 +77,103 @@ const TvShowDetails = () => {
 
   if (isLoading) {
     return (
-      <Container>
-        <div className="py-20 text-center">
-          <div className="inline-block animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500 mb-4"></div>
-          <p className="text-gray-600">Loading TV show details...</p>
-        </div>
-      </Container>
+      <>
+        <SEO
+          title="Loading TV Show"
+          description="Loading TV show details..."
+        />
+        <Container>
+          <div className="py-20 text-center">
+            <div className="inline-block animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500 mb-4"></div>
+            <p className="text-gray-600">Loading TV show details...</p>
+          </div>
+        </Container>
+      </>
     );
   }
 
   if (error) {
     return (
-      <Container>
-        <div className="py-20 text-center">
-          <div className="bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded max-w-md mx-auto">
-            <p className="font-bold mb-2">Error loading TV show details</p>
-            <p>{error}</p>
-            <Link to="/tv-shows" className="mt-4 inline-block bg-red-100 hover:bg-red-200 text-red-800 font-semibold py-2 px-4 rounded">
-              Back to TV Shows
-            </Link>
+      <>
+        <SEO
+          title="Error | TV Show Details"
+          description="There was an error loading the TV show details."
+        />
+        <Container>
+          <div className="py-20 text-center">
+            <div className="bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded max-w-md mx-auto">
+              <p className="font-bold mb-2">Error loading TV show details</p>
+              <p>{error}</p>
+              <Link to="/tv-shows" className="mt-4 inline-block bg-red-100 hover:bg-red-200 text-red-800 font-semibold py-2 px-4 rounded">
+                Back to TV Shows
+              </Link>
+            </div>
           </div>
-        </div>
-      </Container>
+        </Container>
+      </>
     );
   }
 
   if (!tvShow) {
     return (
-      <Container>
-        <div className="py-20 text-center">
-          <p className="text-gray-600">TV show not found</p>
-          <Link to="/tv-shows" className="mt-4 inline-block bg-blue-100 hover:bg-blue-200 text-blue-800 font-semibold py-2 px-4 rounded">
-            Back to TV Shows
-          </Link>
-        </div>
-      </Container>
+      <>
+        <SEO
+          title="TV Show Not Found"
+          description="The requested TV show could not be found."
+        />
+        <Container>
+          <div className="py-20 text-center">
+            <p className="text-gray-600">TV show not found</p>
+            <Link to="/tv-shows" className="mt-4 inline-block bg-blue-100 hover:bg-blue-200 text-blue-800 font-semibold py-2 px-4 rounded">
+              Back to TV Shows
+            </Link>
+          </div>
+        </Container>
+      </>
     );
   }
 
+  // Generate a list of keywords based on show data
+  const generateKeywords = () => {
+    const keywords = [
+      tvShow.name,
+      'tv show',
+      'series'
+    ];
+    
+    if (tvShow.genres) {
+      tvShow.genres.forEach(genre => keywords.push(genre.name.toLowerCase()));
+    }
+    
+    if (tvShow.created_by && tvShow.created_by.length) {
+      keywords.push(...tvShow.created_by.map(person => person.name));
+    }
+    
+    if (tvShow.networks && tvShow.networks.length) {
+      keywords.push(...tvShow.networks.map(network => network.name));
+    }
+    
+    return keywords.join(', ');
+  };
+
+  // Generate a description based on the TV show data
+  const generateDescription = () => {
+    let description = tvShow.overview || `Details about ${tvShow.name}`;
+    if (description.length > 155) {
+      description = description.substring(0, 152) + '...';
+    }
+    return description;
+  };
+
   return (
     <>
+      <SEO
+        title={tvShow.name}
+        description={generateDescription()}
+        keywords={generateKeywords()}
+        image={tvShow.poster_path ? `${BASE_IMG_URL}${tvShow.poster_path}` : undefined}
+      />
+      
       {/* Hero section with background image */}
       <div 
         style={{
@@ -97,7 +191,7 @@ const TvShowDetails = () => {
             <div className="w-64 flex-shrink-0 mx-auto md:mx-0">
               {tvShow.poster_path ? (
                 <img 
-                  src={`https://image.tmdb.org/t/p/w500${tvShow.poster_path}`}
+                  src={`${BASE_IMG_URL}${tvShow.poster_path}`}
                   alt={tvShow.name}
                   className="w-full rounded-lg shadow-lg"
                 />
@@ -124,7 +218,7 @@ const TvShowDetails = () => {
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                       <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                     </svg>
-                    <span className="font-medium">{tvShow.vote_average.toFixed(1)}</span>
+                    <span className="font-medium">{(tvShow.vote_average/2).toFixed(1)}/5</span>
                   </div>
                 )}
                 
@@ -162,6 +256,12 @@ const TvShowDetails = () => {
                 </div>
               )}
               
+              {tvShow.tagline && (
+                <div className="mb-3">
+                  <p className="text-gray-300 italic">"{tvShow.tagline}"</p>
+                </div>
+              )}
+              
               {tvShow.overview && (
                 <div className="mb-4">
                   <h3 className="text-xl font-semibold mb-2">Overview</h3>
@@ -192,12 +292,65 @@ const TvShowDetails = () => {
       {/* Content section */}
       <Container>
         <div className="py-8">
+          {/* Cast information */}
+          {tvShow.credits && tvShow.credits.cast && tvShow.credits.cast.length > 0 && (
+            <div className="mb-8">
+              <h2 className="text-2xl font-bold mb-4">Top Cast</h2>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                {tvShow.credits.cast.slice(0, 6).map(person => (
+                  <div key={person.id} className="bg-white rounded-lg shadow-md overflow-hidden">
+                    {person.profile_path ? (
+                      <img 
+                        src={`${BASE_IMG_URL}${person.profile_path}`} 
+                        alt={person.name}
+                        className="w-full h-48 object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-48 bg-gray-200 flex items-center justify-center">
+                        <span className="text-gray-500">No image</span>
+                      </div>
+                    )}
+                    <div className="p-3">
+                      <h3 className="font-semibold text-gray-800">{person.name}</h3>
+                      <p className="text-sm text-gray-600">{person.character}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        
           {/* Seasons and Episodes */}
           {tvShow.seasons && tvShow.seasons.length > 0 && (
             <SeasonEpisodes 
               tvId={tvShow.id} 
               seasons={tvShow.seasons.filter(season => season.season_number > 0)} 
             />
+          )}
+          
+          {/* Videos section */}
+          {tvShow.videos && tvShow.videos.results && tvShow.videos.results.length > 0 && (
+            <div className="mt-8">
+              <h2 className="text-2xl font-bold mb-4">Videos</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {tvShow.videos.results.slice(0, 2).map(video => (
+                  <div key={video.id} className="bg-white rounded-lg shadow-md overflow-hidden">
+                    <iframe
+                      title={video.name}
+                      className="w-full aspect-video"
+                      src={`https://www.youtube.com/embed/${video.key}`}
+                      frameBorder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    ></iframe>
+                    <div className="p-3">
+                      <h3 className="font-semibold text-gray-800">{video.name}</h3>
+                      <p className="text-sm text-gray-600">{video.type}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
           
           {/* Additional information */}
