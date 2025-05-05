@@ -1,5 +1,5 @@
 // TMDB API configuration
-export const API_TOKEN = process.env.TMDB_API_TOKEN; // Retrieve the TMDB API token from an environment variable
+export const API_TOKEN = import.meta.env.VITE_TMDB_API_TOKEN;
 export const BASE_API = 'https://api.themoviedb.org/3'
 export const BASE_IMG_URL = 'https://image.tmdb.org/t/p/w500'
 
