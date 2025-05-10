@@ -8,14 +8,13 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  assetsInclude: ['**/*.html'],
   server: {
-    proxy: {
-      '/api': {
-        target: 'https://imdb.sesatnime.serv00.net',
-        changeOrigin: true,
-        secure: false,
-        rewrite: (path) => path
-      }
-    }
+    port: 3000,
+    host: true
+  },
+  build: {
+    outDir: 'dist',
+    sourcemap: true
   }
 })

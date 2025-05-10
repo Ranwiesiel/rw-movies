@@ -16,10 +16,13 @@ const SEO = ({
   description, 
   keywords = 'movies, tv shows, entertainment',
   image = '/og-image.jpg',
-  url = window.location.href 
+  url 
 }) => {
   const siteTitle = 'RanwUse Movies & TV Shows';
   const fullTitle = title ? `${title} | ${siteTitle}` : siteTitle;
+  
+  // Safely get URL only when component renders
+  const canonicalUrl = url || (typeof window !== 'undefined' ? window.location.href : '');
   
   return (
     <Helmet>
@@ -32,7 +35,7 @@ const SEO = ({
       <meta property="og:title" content={fullTitle} />
       <meta property="og:description" content={description} />
       <meta property="og:image" content={image} />
-      <meta property="og:url" content={url} />
+      <meta property="og:url" content={canonicalUrl} />
       <meta property="og:type" content="website" />
       
       {/* Twitter meta tags */}
@@ -42,7 +45,7 @@ const SEO = ({
       <meta name="twitter:image" content={image} />
       
       {/* Canonical link */}
-      <link rel="canonical" href={url} />
+      <link rel="canonical" href={canonicalUrl} />
     </Helmet>
   );
 };

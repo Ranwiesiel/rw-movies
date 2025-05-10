@@ -1,0 +1,9 @@
+# Ignore node modules
+node_modules
+
+# Ignore build directories
+dist
+.cache
+
+# Ignore local env files
+*.local

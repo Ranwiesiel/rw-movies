@@ -1,9 +1,9 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
-import { HelmetProvider } from 'react-helmet-async'
-import Movie from './pages/Movie'
-import TvShows from './pages/TvShows'
-import TvShowDetails from './pages/TvShowDetails'
-import Navigation from './components/Navigation'
+import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { HelmetProvider } from 'react-helmet-async';
+import Movie from './pages/Movie';
+import TvShows from './pages/TvShows';
+import TvShowDetails from './pages/TvShowDetails';
+import Navigation from './components/Navigation';
 
 const App = () => {
   return (
@@ -17,7 +17,7 @@ const App = () => {
         </Routes>
       </BrowserRouter>
     </HelmetProvider>
-  )
-}
+  );
+};
 
-export default App
+export default App;
