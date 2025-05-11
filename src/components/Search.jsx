@@ -1,5 +1,5 @@
-import { useContext, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useContext, useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { MovieContext } from "../contexts/MovieContext";
 import { SEARCH_MOVIES, getHeaders } from "../utils/Endpoint";
 
@@ -7,12 +7,25 @@ export default function Search() {
   const { dispatch } = useContext(MovieContext);
   const [searchTerm, setSearchTerm] = useState("");
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleSearch = async () => {
     if (searchTerm.trim() === "") return;
     
-    // Navigate to the clean URL path for the search
-    navigate(`/${searchTerm.trim()}`);
+    // Save current location pathname before navigating
+    const currentPath = location.pathname + location.search;
+    // Don't save search pages as previous location
+    if (!currentPath.includes('/search/') && !currentPath.includes(`/${searchTerm.trim()}`)) {
+      localStorage.setItem("previousLocation", currentPath);
+    }
+    
+    // Use the TV search route if we're in the TV section
+    if (location.pathname.startsWith('/tv')) {
+      navigate(`/tv/search/${searchTerm.trim()}`);
+    } else {
+      // Use the movie search route
+      navigate(`/${searchTerm.trim()}`);
+    }
     
     dispatch({ type: "SET_LOADING", payload: true });
     

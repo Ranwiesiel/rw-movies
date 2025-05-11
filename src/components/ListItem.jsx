@@ -1,4 +1,4 @@
-import { useState, useEffect, memo } from 'react'
+import { useState, useEffect, memo, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 
 // Storage utility for image caching with safety mechanisms
@@ -68,41 +68,102 @@ const imageStorage = {
         }
     },
     
-    // Limit image size by reducing quality or dimensions if needed
-    optimizeImageData(base64Data, maxSizeKB = 50) {
-        // If the image is already small enough, return it as is
-        const estimatedSize = Math.ceil((base64Data.length * 3) / 4);
-        if (estimatedSize <= maxSizeKB * 1024) {
-            return base64Data;
-        }
-        
-        return base64Data; // In real implementation, you'd resize the image here
+    // Get the right image size based on screen width
+    getImageSize() {
+        const width = window.innerWidth;
+        if (width <= 640) return 'w154'; // Small screens
+        if (width <= 1024) return 'w342'; // Medium screens
+        return 'w500'; // Large screens
     }
+};
+
+// Global cache for images in memory (current session only)
+const memoryImageCache = new Map();
+
+// Image preload queue
+const imagePreloadQueue = [];
+let isPreloading = false;
+
+// Process the preload queue
+const processPreloadQueue = () => {
+    if (isPreloading || imagePreloadQueue.length === 0) return;
+    
+    isPreloading = true;
+    const nextItem = imagePreloadQueue.shift();
+    
+    const img = new Image();
+    img.onload = () => {
+        isPreloading = false;
+        // Continue with the next item
+        processPreloadQueue();
+    };
+    img.onerror = () => {
+        isPreloading = false;
+        // Continue even if there was an error
+        processPreloadQueue(); 
+    };
+    img.src = nextItem;
 };
 
 const ListItem = memo((props) => {
     const [imgSrc, setImgSrc] = useState(null);
+    const [thumbnailSrc, setThumbnailSrc] = useState(null);
     const [imageLoading, setImageLoading] = useState(true);
     const [imageError, setImageError] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
+    const [isIntersecting, setIsIntersecting] = useState(false);
+    const [highResLoaded, setHighResLoaded] = useState(false);
+    const imageRef = useRef(null);
     const navigate = useNavigate();
     const location = useLocation();
     
     // Type defaults to 'movie' if not specified
     const { type = 'movie' } = props;
-    
+
+    // Use Intersection Observer to detect when item is visible
     useEffect(() => {
-        if (!props.posterPath) {
+        const observer = new IntersectionObserver(
+            (entries) => {
+                const entry = entries[0];
+                setIsIntersecting(entry.isIntersecting);
+            },
+            {
+                root: null,
+                rootMargin: '200px', // Load images 200px before they enter viewport
+                threshold: 0.01
+            }
+        );
+
+        if (imageRef.current) {
+            observer.observe(imageRef.current);
+        }
+
+        return () => {
+            if (imageRef.current) {
+                observer.unobserve(imageRef.current);
+            }
+        };
+    }, []);
+    
+    // Load image when item becomes visible
+    useEffect(() => {
+        if (!isIntersecting || !props.posterPath) return;
+        
+        // Reset states when poster path changes
+        if (!imageLoading) setImageLoading(true);
+        if (imageError) setImageError(false);
+        setHighResLoaded(false);
+        
+        // Memory cache check (fastest)
+        const memCacheKey = `${props.id}_${props.posterPath}`;
+        if (memoryImageCache.has(memCacheKey)) {
+            setImgSrc(memoryImageCache.get(memCacheKey));
             setImageLoading(false);
-            setImageError(true);
+            setHighResLoaded(true);
             return;
         }
         
-        // Reset states when poster path changes
-        setImageLoading(true);
-        setImageError(false);
-        
-        // Try to get the image from localStorage first
+        // Try to get the image from localStorage next (still fast)
         const imageKey = `image_${props.id}`;
         const cachedImage = localStorage.getItem(imageKey);
         const cachedTimestamp = localStorage.getItem(`${imageKey}_timestamp`);
@@ -114,15 +175,26 @@ const ListItem = memo((props) => {
                 // Use the cached image if it's still valid
                 setImgSrc(cachedImage);
                 setImageLoading(false);
+                setHighResLoaded(true);
+                // Also update memory cache
+                memoryImageCache.set(memCacheKey, cachedImage);
                 return;
             }
         }
         
-        // If no valid cached image, load from TMDB
-        const fullImageUrl = `https://image.tmdb.org/t/p/w500${props.posterPath}`;
-        setImgSrc(fullImageUrl);
+        // First load a tiny thumbnail version for immediate display
+        const thumbnailUrl = `https://image.tmdb.org/t/p/w92${props.posterPath}`;
+        setThumbnailSrc(thumbnailUrl);
         
-        // Cache the image for future use with a reduced size/quality
+        // Then load the full size image
+        const imageSize = imageStorage.getImageSize();
+        const fullImageUrl = `https://image.tmdb.org/t/p/${imageSize}${props.posterPath}`;
+        
+        // Add to preload queue for high-res version
+        imagePreloadQueue.push(fullImageUrl);
+        processPreloadQueue();
+        
+        // Cache the image for future use
         fetch(fullImageUrl)
             .then(response => {
                 if (!response.ok) {
@@ -140,7 +212,15 @@ const ListItem = memo((props) => {
                 const reader = new FileReader();
                 reader.onloadend = () => {
                     const base64data = reader.result;
-                    // Store the image data with safeguards
+                    
+                    // Update memory cache immediately
+                    memoryImageCache.set(memCacheKey, base64data);
+                    
+                    // Set as the displayed image
+                    setImgSrc(base64data);
+                    setHighResLoaded(true);
+                    
+                    // Store in localStorage for persistent caching
                     imageStorage.safeStore(
                         imageKey,
                         base64data,
@@ -152,8 +232,26 @@ const ListItem = memo((props) => {
             })
             .catch(error => {
                 console.error('Error caching image:', error);
+                // If we failed to load the high-res, at least show the thumbnail
+                setImgSrc(thumbnailSrc);
             });
-    }, [props.posterPath, props.id, props.title]);
+    }, [isIntersecting, props.posterPath, props.id, props.title, thumbnailSrc]);
+
+    // Handle thumbnail loading
+    useEffect(() => {
+        if (!thumbnailSrc) return;
+        
+        const img = new Image();
+        img.onload = () => {
+            // When thumbnail loads, show it immediately while waiting for high-res
+            if (!highResLoaded) {
+                setImgSrc(thumbnailSrc);
+                setImageLoading(false);
+            }
+        };
+        img.onerror = handleImageError;
+        img.src = thumbnailSrc;
+    }, [thumbnailSrc, highResLoaded]);
 
     const handleImageError = () => {
         setImageError(true);
@@ -220,6 +318,7 @@ const ListItem = memo((props) => {
             tabIndex={0}
             onKeyDown={(e) => e.key === 'Enter' && handleClick(e)}
             aria-label={getAccessibilityTitle()}
+            ref={imageRef}
         >
             <div className="flex flex-col h-full">
                 {/* Image container with overlay effect on hover */}
@@ -240,11 +339,12 @@ const ListItem = memo((props) => {
                                 loading="lazy"
                                 className={`w-full h-full object-cover transition-transform duration-500 ${
                                     isHovered ? 'scale-110' : 'scale-100'
-                                }`}
+                                } ${!highResLoaded ? 'blur-sm scale-110' : ''}`}
                                 onError={handleImageError}
                                 onLoad={handleImageLoad}
                                 style={{ display: imageLoading ? 'none' : 'block' }}
                             />
+                            
                             {/* Gradient overlay */}
                             <div className={`absolute inset-0 bg-gradient-to-t from-black/70 to-transparent transition-opacity duration-300 ${
                                 isHovered ? 'opacity-100' : 'opacity-0'
