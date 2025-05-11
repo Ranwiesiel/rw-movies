@@ -1,13 +1,18 @@
 import { useContext, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { MovieContext } from "../contexts/MovieContext";
 import { SEARCH_MOVIES, getHeaders } from "../utils/Endpoint";
 
 export default function Search() {
   const { dispatch } = useContext(MovieContext);
   const [searchTerm, setSearchTerm] = useState("");
+  const navigate = useNavigate();
 
   const handleSearch = async () => {
     if (searchTerm.trim() === "") return;
+    
+    // Navigate to the clean URL path for the search
+    navigate(`/${searchTerm.trim()}`);
     
     dispatch({ type: "SET_LOADING", payload: true });
     

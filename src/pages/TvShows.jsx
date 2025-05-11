@@ -1,9 +1,11 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
+import { useSearchParams, useLocation, useNavigate, useParams } from 'react-router-dom'
 import SEO from '../utils/SEO'
 import Input from '../components/Input'
 import ListItem from '../components/ListItem'
 import Container from '../components/Container'
 import Pagination from '../components/Pagination'
+import BackToTop from '../components/BackToTop'
 import { PAGINATED_TV_SHOWS, SEARCH_TV_SHOWS, BASE_IMG_URL, getHeaders } from '../utils/Endpoint'
 
 const storageManager = {
@@ -68,15 +70,63 @@ const storageManager = {
 };
 
 const TvShows = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { searchTerm: urlSearchTerm } = useParams();
+  
+  // Get search term from either URL path parameter or query parameter
+  const initialSearchTerm = urlSearchTerm || searchParams.get('q') || '';
+  const initialPage = parseInt(searchParams.get('page') || '1', 10);
+  
   const [tvShows, setTvShows] = useState([])
-  const [keyword, setKeyword] = useState('')
-  const [searchTerm, setSearchTerm] = useState('')
+  const [keyword, setKeyword] = useState(initialSearchTerm)
+  const [searchTerm, setSearchTerm] = useState(initialSearchTerm)
   const [isLoading, setIsLoading] = useState(true)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [error, setError] = useState(null)
-  const [page, setPage] = useState(1)
+  const [page, setPage] = useState(initialPage)
   const [totalPages, setTotalPages] = useState(1)
-  const [isSearchMode, setIsSearchMode] = useState(false)
+  const [isSearchMode, setIsSearchMode] = useState(!!initialSearchTerm)
+  const [allResults, setAllResults] = useState([])
+  const [loadedPages, setLoadedPages] = useState(new Set([1]))
   const searchInputRef = useRef(null)
+
+  // UI enhancement - Add search icon for input
+  const searchIcon = (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+    </svg>
+  );
+
+  // Update URL when search term or page changes
+  useEffect(() => {
+    if (searchTerm) {
+      // Use the explicit TV search route structure
+      if (page > 1) {
+        navigate(`/tv/search/${searchTerm}?page=${page}`, { replace: true });
+      } else {
+        navigate(`/tv/search/${searchTerm}`, { replace: true });
+      }
+    } else {
+      // Regular TV shows browsing with pagination
+      if (page !== 1) {
+        navigate(`/tv?page=${page}`, { replace: true });
+      } else {
+        // Default TV shows route, no query params
+        navigate('/tv', { replace: true });
+      }
+    }
+  }, [searchTerm, page, navigate]);
+
+  // Initialize from URL parameters when component mounts
+  useEffect(() => {
+    if (initialSearchTerm) {
+      setKeyword(initialSearchTerm);
+      setSearchTerm(initialSearchTerm);
+      setIsSearchMode(true);
+    }
+  }, [initialSearchTerm]);
 
   const fetchTvShows = useCallback((pageNum = 1) => {
     setIsLoading(true)
@@ -172,10 +222,16 @@ const TvShows = () => {
       })
   }, [])
 
-  const searchTvShows = useCallback((query, pageNum = 1) => {
+  const searchTvShows = useCallback((query, pageNum = 1, appendResults = false) => {
     if (!query.trim()) return;
     
-    setIsLoading(true);
+    if (appendResults) {
+      setIsLoadingMore(true);
+    } else {
+      setIsLoading(true);
+      setAllResults([]);
+      setLoadedPages(new Set([1]));
+    }
     setError(null);
     
     const cachedKey = `searchCache_tvShow_${query.toLowerCase()}_${pageNum}`;
@@ -188,10 +244,23 @@ const TvShows = () => {
       if (currentTime - parseInt(cachedTimestamp) < cacheExpiry) {
         try {
           const parsedData = JSON.parse(cachedData);
-          console.log("Using cached search data");
-          setTvShows(parsedData.results);
-          setTotalPages(Math.min(parsedData.total_pages, 500)); // TMDB API limit
-          setIsLoading(false);
+          console.log("Using cached search data for page", pageNum);
+          
+          if (appendResults) {
+            setAllResults(prev => [...prev, ...parsedData.results]);
+            setTvShows(prev => [...prev, ...parsedData.results]);
+            setLoadedPages(prev => new Set([...prev, pageNum]));
+            setIsLoadingMore(false);
+          } else {
+            setTvShows(parsedData.results);
+            setAllResults(parsedData.results);
+          }
+          
+          setTotalPages(Math.min(parsedData.total_pages, 500));
+          
+          if (!appendResults) {
+            setIsLoading(false);
+          }
           return;
         } catch (err) {
           console.error("Error parsing cached search data", err);
@@ -213,10 +282,17 @@ const TvShows = () => {
       })
       .then(data => {
         if (data && Array.isArray(data.results)) {
-          setTvShows(data.results);
+          if (appendResults) {
+            setAllResults(prev => [...prev, ...data.results]);
+            setTvShows(prev => [...prev, ...data.results]);
+            setLoadedPages(prev => new Set([...prev, pageNum]));
+          } else {
+            setTvShows(data.results);
+            setAllResults(data.results);
+          }
+          
           setTotalPages(Math.min(data.total_pages, 500));
           
-          // Cache search results
           storageManager.safeSet(cachedKey, JSON.stringify(data));
           storageManager.safeSet(`${cachedKey}_timestamp`, new Date().getTime().toString());
           
@@ -228,19 +304,31 @@ const TvShows = () => {
             }
           });
         } else {
-          setTvShows([]);
-          setTotalPages(1);
+          if (!appendResults) {
+            setTvShows([]);
+            setAllResults([]);
+            setTotalPages(1);
+          }
           console.error('Unexpected search response format:', data);
           setError('Unexpected search response format. The server might be down or the API format has changed.');
         }
-        setIsLoading(false);
+        
+        if (appendResults) {
+          setIsLoadingMore(false);
+        } else {
+          setIsLoading(false);
+        }
       })
       .catch(err => {
         console.error('Error searching TV shows:', err);
         setError(`Failed to search TV shows. Please check your internet connection or try again later. (${err.message})`);
-        setTvShows([]);
-        setTotalPages(1);
-        setIsLoading(false);
+        if (!appendResults) {
+          setTvShows([]);
+          setAllResults([]);
+          setTotalPages(1);
+          setIsLoading(false);
+        }
+        setIsLoadingMore(false);
       });
   }, []);
 
@@ -260,10 +348,11 @@ const TvShows = () => {
 
   const executeSearch = () => {
     if (keyword.trim()) {
-      setSearchTerm(keyword);
-      setPage(1); // Reset to first page for new searches
+      setSearchTerm(keyword.trim());
+      setPage(1); // Reset to page 1 on new search
     } else {
       setSearchTerm('');
+      navigate('/tv', { replace: true });
     }
   };
 
@@ -299,6 +388,14 @@ const TvShows = () => {
     alert('Cache cleared successfully');
   };
 
+  // Function to load more search results
+  const loadMoreResults = () => {
+    const nextPage = Math.max(...Array.from(loadedPages)) + 1;
+    if (nextPage <= totalPages) {
+      searchTvShows(searchTerm, nextPage, true);
+    }
+  };
+
   return (
     <>
       <SEO 
@@ -307,32 +404,36 @@ const TvShows = () => {
         keywords="tv shows, series, popular tv shows, tv series, anime"
       />
       
+      <BackToTop />
+      
       <div style={{
-         background: `linear-gradient(rgba(0,0,0,.5), rgba(0,0,0,.7)), url('https://images.unsplash.com/photo-1522869635100-9f4c5e86aa37?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80')`,
+         background: `linear-gradient(rgba(0,0,0,.6), rgba(0,0,0,.8)), url('https://images.unsplash.com/photo-1522869635100-9f4c5e86aa37?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80')`,
          backgroundPosition: 'center',
-         backgroundSize: 'cover'
+         backgroundSize: 'cover',
+         backgroundAttachment: 'fixed'
       }}>
         <Container>
-          <div className='min-h-[50vh] flex flex-col justify-center'>
-            <h1 className='text-white w-full mx-auto text-3xl sm:text-5xl font-bold text-center mb-4'>
+          <div className='min-h-[40vh] md:min-h-[50vh] flex flex-col justify-center py-8 md:py-0'>
+            <h1 className='text-white w-full mx-auto text-2xl sm:text-3xl md:text-5xl font-bold text-center mb-2 md:mb-4'>
               Discover TV Shows
             </h1>
-            <p className='text-gray-200 text-center mb-8 max-w-2xl mx-auto'>
+            <p className='text-gray-200 text-center mb-4 md:mb-8 max-w-2xl mx-auto px-4 text-sm md:text-base'>
               Find popular series, anime, and TV shows from around the world. Explore trending shows or search for your favorites.
             </p>
-            <div className='w-[90%] sm:w-2/3 lg:w-1/2 mx-auto py-6'>
-              <div className="flex gap-2">
+            <div className='w-[95%] sm:w-[90%] md:w-2/3 lg:w-1/2 mx-auto py-3 md:py-6'>
+              <div className="flex flex-col sm:flex-row gap-2">
                 <Input 
-                  onInput={handleInputChange} 
+                  onInput={handleInputChange}
                   placeholder="Search for a TV show..." 
                   value={keyword}
-                  className="shadow-lg flex-grow"
+                  className="shadow-lg flex-grow mb-2 sm:mb-0"
                   ref={searchInputRef}
                   onKeyPress={handleKeyPress}
+                  icon={searchIcon}
                 />
                 <button 
                   onClick={executeSearch}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-lg transition-colors"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg shadow-lg transition-all duration-200 flex items-center justify-center"
                 >
                   Search
                 </button>
@@ -354,9 +455,9 @@ const TvShows = () => {
 
       <Container>
         {isLoading && (
-          <div className='py-16 text-center'>
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mb-4"></div>
-            <p>
+          <div className='py-8 md:py-16 text-center'>
+            <div className="inline-block animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500 mb-4"></div>
+            <p className="text-gray-600">
               {isSearchMode 
                 ? `Searching for "${searchTerm}"...` 
                 : "Loading TV shows..."}
@@ -365,13 +466,13 @@ const TvShows = () => {
         )}
         
         {error && !isLoading && (
-          <div className='py-12 text-center'>
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded max-w-md mx-auto">
-              <p className="font-bold">Error loading TV shows</p>
+          <div className='py-6 md:py-12 text-center'>
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-4 rounded-lg max-w-md mx-auto shadow-sm">
+              <p className="font-bold mb-1">Error loading TV shows</p>
               <p className="text-sm">{error}</p>
               <button 
                 onClick={() => searchTerm ? searchTvShows(searchTerm, page) : fetchTvShows(page)} 
-                className="mt-3 bg-red-100 hover:bg-red-200 text-red-800 font-semibold py-2 px-4 rounded text-sm"
+                className="mt-3 bg-red-100 hover:bg-red-200 text-red-800 font-semibold py-2 px-4 rounded transition-colors"
               >
                 Try Again
               </button>
@@ -381,23 +482,42 @@ const TvShows = () => {
         
         {!isLoading && !error && (
           <>
-            <div className='py-8'>
-              <div className="flex flex-col sm:flex-row justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-800 mb-2 sm:mb-0">
+            <div className='py-6 md:py-8'>
+              <div className="flex flex-col sm:flex-row justify-between items-center mb-4 md:mb-6 px-2 sm:px-0">
+                <h2 className="text-xl md:text-2xl font-bold text-gray-800 mb-2 sm:mb-0 flex items-center">
                   {searchTerm 
-                    ? `Search results for "${searchTerm}" (${tvShows.length} TV shows)` 
-                    : 'Popular TV Shows'}
+                    ? (
+                      <>
+                        <span className="text-blue-600 mr-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                          </svg>
+                        </span>
+                        Results for "{searchTerm}"
+                      </> 
+                    ) 
+                    : (
+                      <>
+                        <span className="text-blue-600 mr-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                          </svg>
+                        </span>
+                        Popular TV Shows
+                      </>
+                    )}
                 </h2>
-                <p className="text-gray-600">
-                  {page > totalPages ? (
-                    <span className="text-red-600">Page {page} exceeds maximum of {totalPages}</span>
-                  ) : (
-                    `Page ${page} of ${totalPages}`
-                  )}
+                <p className="text-sm md:text-base text-gray-600">
+                  {isSearchMode && totalPages > 1 
+                    ? <span className="flex items-center"><span className="inline-block w-2 h-2 rounded-full bg-blue-500 mr-2"></span>{tvShows.length} results (Page {page} of {totalPages})</span>
+                    : page > totalPages 
+                      ? <span className="text-red-600">Page {page} exceeds maximum of {totalPages}</span> 
+                      : <span className="flex items-center"><span className="inline-block w-2 h-2 rounded-full bg-green-500 mr-2"></span>Page {page} of {totalPages}</span>
+                  }
                 </p>
               </div>
               
-              <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'>
+              <div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6 px-2 sm:px-0'>
                 {tvShows.length > 0 ? (
                   tvShows.map((show) => (
                     <ListItem 
@@ -411,8 +531,11 @@ const TvShows = () => {
                     />
                   ))
                 ) : (
-                  <div className="col-span-full text-center py-16">
-                    <p className="text-gray-600 mb-2">No TV shows found</p>
+                  <div className="col-span-full text-center py-12 md:py-16">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M12 14a7 7 0 110-14 7 7 0 010 14z" />
+                    </svg>
+                    <p className="text-gray-600 mb-3">No TV shows found</p>
                     {searchTerm && (
                       <button 
                         onClick={() => {
@@ -420,7 +543,7 @@ const TvShows = () => {
                           setSearchTerm('');
                           setPage(1);
                         }} 
-                        className="bg-blue-100 hover:bg-blue-200 text-blue-800 font-semibold py-2 px-4 rounded"
+                        className="bg-blue-100 hover:bg-blue-200 text-blue-800 font-semibold py-2 px-4 rounded transition-colors"
                       >
                         Clear Search
                       </button>
@@ -429,13 +552,45 @@ const TvShows = () => {
                 )}
               </div>
               
-              {tvShows.length > 0 && (
-                <Pagination 
-                  page={page}
-                  totalPages={totalPages}
-                  onPageChange={handlePageChange}
-                  itemsPerPage={tvShows.length}
-                />
+              {isSearchMode && tvShows.length > 0 && loadedPages.size < totalPages ? (
+                <div className="flex justify-center mt-6">
+                  <button
+                    onClick={loadMoreResults}
+                    className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg shadow transition-colors flex items-center space-x-2"
+                    disabled={isLoadingMore}
+                  >
+                    {isLoadingMore ? (
+                      <>
+                        <div className="w-5 h-5 border-t-2 border-b-2 border-white rounded-full animate-spin"></div>
+                        <span>Loading more...</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                        </svg>
+                        <span>Load More Results</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              ) : (
+                tvShows.length > 0 && (
+                  <div className="px-2 sm:px-0 mt-6">
+                    <Pagination 
+                      page={page}
+                      totalPages={totalPages}
+                      onPageChange={handlePageChange}
+                      itemsPerPage={tvShows.length}
+                    />
+                  </div>
+                )
+              )}
+              
+              {isSearchMode && loadedPages.size > 1 && (
+                <div className="text-center text-sm text-gray-500 mt-4">
+                  {loadedPages.size} of {totalPages} pages loaded ({tvShows.length} shows)
+                </div>
               )}
             </div>
           </>

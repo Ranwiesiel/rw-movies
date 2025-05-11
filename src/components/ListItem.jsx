@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect, memo } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 
 // Storage utility for image caching with safety mechanisms
 const imageStorage = {
@@ -80,16 +80,27 @@ const imageStorage = {
     }
 };
 
-const ListItem = (props) => {
+const ListItem = memo((props) => {
     const [imgSrc, setImgSrc] = useState(null);
+    const [imageLoading, setImageLoading] = useState(true);
     const [imageError, setImageError] = useState(false);
+    const [isHovered, setIsHovered] = useState(false);
     const navigate = useNavigate();
+    const location = useLocation();
     
     // Type defaults to 'movie' if not specified
     const { type = 'movie' } = props;
     
     useEffect(() => {
-        if (!props.posterPath) return;
+        if (!props.posterPath) {
+            setImageLoading(false);
+            setImageError(true);
+            return;
+        }
+        
+        // Reset states when poster path changes
+        setImageLoading(true);
+        setImageError(false);
         
         // Try to get the image from localStorage first
         const imageKey = `image_${props.id}`;
@@ -102,6 +113,7 @@ const ListItem = (props) => {
             if (currentTime - parseInt(cachedTimestamp) < cacheExpiry) {
                 // Use the cached image if it's still valid
                 setImgSrc(cachedImage);
+                setImageLoading(false);
                 return;
             }
         }
@@ -145,57 +157,164 @@ const ListItem = (props) => {
 
     const handleImageError = () => {
         setImageError(true);
+        setImageLoading(false);
+    };
+    
+    const handleImageLoad = () => {
+        setImageLoading(false);
     };
 
-    // Handle different types (movie or tv)
-    const handleClick = () => {
+    // Navigation handler with history tracking
+    const handleClick = (e) => {
+        const currentPath = location.pathname + location.search;
+        
+        const isSearchPage = (path) => {
+            return path.startsWith('/tv/search/') || 
+                   path.match(/^\/[^\/]+$/) && path !== '/tv' && path !== '/movie';
+        };
+        
         if (type === 'movie') {
-            // For movies, open directly
-            window.open(`https://embed.su/embed/movie/${props.id}`, '_blank');
-        } else {
-            // For TV shows, navigate to the details page
-            navigate(`/tv-shows/${props.id}`);
+            if (e.ctrlKey || e.metaKey) {
+                window.open(`/movie/${props.id}`, '_blank');
+            } else {
+                navigate(`/movie/${props.id}`, {
+                    state: { 
+                        fromPath: currentPath,
+                        fromSearch: isSearchPage(currentPath),
+                        timestamp: Date.now()
+                    }
+                });
+            }
+        } else { // TV show
+            if (e.ctrlKey || e.metaKey) {
+                window.open(`/tv/${props.id}`, '_blank');
+            } else {
+                navigate(`/tv/${props.id}`, {
+                    state: { 
+                        fromPath: currentPath,
+                        fromSearch: isSearchPage(currentPath),
+                        timestamp: Date.now()
+                    }
+                });
+            }
         }
     };
+
+    // Get title attribute with type-specific wording
+    const getAccessibilityTitle = () => {
+        return `${type === 'tv' ? 'Watch TV Show' : 'Watch Movie'}: ${props.title}`;
+    };
+
+    // Format the rating to show only one decimal if needed
+    const formattedRating = props.rating ? 
+        props.rating.toFixed(1).replace(/\.0$/, '') : null;
 
     return (
         <div 
             onClick={handleClick}
-            className='bg-white rounded-md border-[1.5px] border-stone-200 p-4 hover:bg-yellow-50 hover:shadow-md transition-all duration-300 cursor-pointer h-full flex flex-col'
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+            className='bg-white rounded-lg border border-gray-200 hover:border-blue-300 overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer h-full flex flex-col'
+            title={getAccessibilityTitle()}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => e.key === 'Enter' && handleClick(e)}
+            aria-label={getAccessibilityTitle()}
         >
             <div className="flex flex-col h-full">
-                <div className="mb-3 flex justify-center">
-                    {imgSrc && !imageError ? (
-                        <img 
-                            src={imgSrc} 
-                            alt={props.title} 
-                            loading="lazy"
-                            className="h-64 object-cover rounded shadow-sm" 
-                            onError={handleImageError}
-                        />
-                    ) : (
-                        <div className="h-64 w-full bg-gray-200 rounded flex items-center justify-center">
-                            <span className="text-gray-500">No Image</span>
+                {/* Image container with overlay effect on hover */}
+                <div className="relative overflow-hidden aspect-[2/3]">
+                    {imageLoading && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+                            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-500 border-r-transparent" role="status">
+                                <span className="sr-only">Loading...</span>
+                            </div>
                         </div>
                     )}
-                </div>
-                <div className="flex-1">
-                    <h3 className='text-lg font-semibold mb-1 line-clamp-2'>{props.title}</h3>
-                    <div className="flex justify-between items-center mt-2">
-                        {props.rating && (
-                            <div className="flex items-center">
-                                <svg className="w-4 h-4 text-yellow-400 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
-                                </svg>
-                                <span className='text-sm font-semibold'>{props.rating.toFixed(1)}</span>
+                    
+                    {imgSrc && !imageError ? (
+                        <>
+                            <img 
+                                src={imgSrc} 
+                                alt={props.title} 
+                                loading="lazy"
+                                className={`w-full h-full object-cover transition-transform duration-500 ${
+                                    isHovered ? 'scale-110' : 'scale-100'
+                                }`}
+                                onError={handleImageError}
+                                onLoad={handleImageLoad}
+                                style={{ display: imageLoading ? 'none' : 'block' }}
+                            />
+                            {/* Gradient overlay */}
+                            <div className={`absolute inset-0 bg-gradient-to-t from-black/70 to-transparent transition-opacity duration-300 ${
+                                isHovered ? 'opacity-100' : 'opacity-0'
+                            }`}></div>
+                            
+                            {/* Rating on top corner */}
+                            {formattedRating && (
+                                <div className="absolute top-2 left-2 bg-black/50 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-md flex items-center">
+                                    <svg className="w-3 h-3 text-yellow-400 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
+                                    </svg>
+                                    <span>{formattedRating}</span>
+                                </div>
+                            )}
+                            
+                            {/* Watch button on hover */}
+                            <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 ${
+                                isHovered ? 'opacity-100' : 'opacity-0'
+                            }`}>
+                                <div className="bg-blue-600/90 text-white px-4 py-2 rounded-full flex items-center space-x-1 transform transition-transform duration-300 hover:scale-110 shadow-lg">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <span className="text-sm font-medium">Watch Now</span>
+                                </div>
                             </div>
-                        )}
-                        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">{props.releaseDate?.split('-')[0] || 'N/A'}</span>
+                        </>
+                    ) : (
+                        <div className="h-full w-full bg-gray-200 flex items-center justify-center">
+                            <div className="text-gray-500 flex flex-col items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                <span className="text-xs">No Image Available</span>
+                            </div>
+                        </div>
+                    )}
+                    
+                    {/* Type indicator - positioned at top right */}
+                    <div className="absolute top-2 right-2">
+                        <span className={`text-xs px-2 py-1 rounded-full uppercase font-medium ${
+                            type === 'tv' 
+                                ? 'bg-indigo-600/80 text-white' 
+                                : 'bg-blue-600/80 text-white'
+                        }`}>
+                            {type}
+                        </span>
                     </div>
+                </div>
+                
+                {/* Content */}
+                <div className="flex-1 p-3 flex flex-col">
+                    <h3 className='text-base font-semibold mb-1 line-clamp-2 text-gray-800 group-hover:text-blue-600 transition-colors'>
+                        {props.title}
+                    </h3>
+                    
+                    {props.releaseDate && (
+                        <div className="mt-auto pt-2">
+                            <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full font-medium">
+                                {props.releaseDate.split('-')[0] || 'N/A'}
+                            </span>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
     )
-}
+});
+
+ListItem.displayName = 'ListItem';
 
 export default ListItem

@@ -9,12 +9,20 @@ export default defineConfig({
     tailwindcss(),
   ],
   assetsInclude: ['**/*.html'],
+  build: {
+    outDir: 'dist',
+    emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: undefined,
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]'
+      }
+    }
+  },
   server: {
     port: 3000,
     host: true
-  },
-  build: {
-    outDir: 'dist',
-    sourcemap: true
   }
 })
