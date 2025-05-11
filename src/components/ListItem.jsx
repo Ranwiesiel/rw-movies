@@ -1,71 +1,24 @@
 import { useState, useEffect, memo, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { safeSetItem, safeGetItem, safeRemoveItem, getStorageUsage } from '../utils/StorageHandler'
 
 // Storage utility for image caching with safety mechanisms
 const imageStorage = {
     // Safely store an item with auto-cleanup if needed
     safeStore(key, value, timestampKey, timestamp) {
-        try {
-            localStorage.setItem(key, value);
-            localStorage.setItem(timestampKey, timestamp);
-            return true;
-        } catch (e) {
-            console.warn('Image cache quota exceeded, cleaning up old images...');
-            // If storage is full, try to clean up and retry
-            if (e.name === 'QuotaExceededError' || e.code === 22 || 
-                e.code === 1014 || // Firefox
-                e.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
-                    
-                this.cleanupOldImages();
-                
-                // Try one more time
-                try {
-                    localStorage.setItem(key, value);
-                    localStorage.setItem(timestampKey, timestamp);
-                    return true;
-                } catch (e2) {
-                    console.error('Failed to cache image after cleanup:', e2);
-                    return false;
-                }
-            }
-            return false;
-        }
+        // Use our new safeSetItem function instead of direct localStorage
+        const valueStored = safeSetItem(key, value);
+        const timestampStored = safeSetItem(timestampKey, timestamp);
+        
+        return valueStored && timestampStored;
     },
     
     // Clean up old image cache to make space
     cleanupOldImages() {
-        const keysToCheck = [];
-        
-        // Find all image cache entries
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key.startsWith('image_') && !key.endsWith('_timestamp')) {
-                const timestampKey = `${key}_timestamp`;
-                const timestamp = localStorage.getItem(timestampKey);
-                
-                if (timestamp) {
-                    keysToCheck.push({
-                        key,
-                        timestampKey,
-                        time: parseInt(timestamp, 10)
-                    });
-                }
-            }
-        }
-        
-        if (keysToCheck.length === 0) return;
-        
-        // Sort by age (oldest first)
-        keysToCheck.sort((a, b) => a.time - b.time);
-        
-        // Remove oldest 40% of images
-        const removeCount = Math.ceil(keysToCheck.length * 0.4);
-        for (let i = 0; i < removeCount; i++) {
-            if (i < keysToCheck.length) {
-                localStorage.removeItem(keysToCheck[i].key);
-                localStorage.removeItem(keysToCheck[i].timestampKey);
-            }
-        }
+        // This function is now redundant as our StorageHandler 
+        // automatically manages storage using LRU algorithm,
+        // but we'll keep it for compatibility
+        console.log("Image cleanup handled by StorageHandler");
     },
     
     // Get the right image size based on screen width
@@ -163,15 +116,18 @@ const ListItem = memo((props) => {
             return;
         }
         
-        // Try to get the image from localStorage next (still fast)
+        // Try to get the image from storage cache (still fast)
         const imageKey = `image_${props.id}`;
-        const cachedImage = localStorage.getItem(imageKey);
-        const cachedTimestamp = localStorage.getItem(`${imageKey}_timestamp`);
+        const timestampKey = `${imageKey}_timestamp`;
+        
+        // Use our new safeGetItem function instead of direct localStorage access
+        const cachedImage = safeGetItem(imageKey);
+        const cachedTimestamp = safeGetItem(timestampKey);
         const cacheExpiry = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
         
         if (cachedImage && cachedTimestamp) {
             const currentTime = new Date().getTime();
-            if (currentTime - parseInt(cachedTimestamp) < cacheExpiry) {
+            if (currentTime - cachedTimestamp < cacheExpiry) {
                 // Use the cached image if it's still valid
                 setImgSrc(cachedImage);
                 setImageLoading(false);
@@ -179,6 +135,10 @@ const ListItem = memo((props) => {
                 // Also update memory cache
                 memoryImageCache.set(memCacheKey, cachedImage);
                 return;
+            } else {
+                // Remove expired items
+                safeRemoveItem(imageKey);
+                safeRemoveItem(timestampKey);
             }
         }
         
@@ -220,12 +180,12 @@ const ListItem = memo((props) => {
                     setImgSrc(base64data);
                     setHighResLoaded(true);
                     
-                    // Store in localStorage for persistent caching
+                    // Store in storage for persistent caching using our improved utility
                     imageStorage.safeStore(
                         imageKey,
                         base64data,
-                        `${imageKey}_timestamp`, 
-                        new Date().getTime().toString()
+                        timestampKey, 
+                        new Date().getTime()
                     );
                 };
                 reader.readAsDataURL(blob);
