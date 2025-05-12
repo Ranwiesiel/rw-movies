@@ -17,13 +17,9 @@ const App = () => {
           <Route path='/movies' element={<Navigate to="/" replace />} />
           <Route path='/movie/:id' element={<MovieDetails />} />
           
-          {/* TV Show routes - explicit ordering matters */}
+          {/* TV Show routes */}
           <Route path='/tv' element={<TvShows />} />
-          <Route path='/tv/search/:searchTerm' element={<TvShows />} />
           <Route path='/tv/:id' element={<TvShowDetails />} />
-          
-          {/* Simplified search routes for movies */}
-          <Route path='/:searchTerm' element={<Movie />} />
         </Routes>
       </BrowserRouter>
     </HelmetProvider>

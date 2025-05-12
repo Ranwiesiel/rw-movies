@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
-import { useSearchParams, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useEffect, useState, useCallback, useRef } from 'react'
+import { useSearchParams, useLocation, useNavigate } from 'react-router-dom'
 import SEO from '../utils/SEO'
 import Input from '../components/Input'
 import ListItem from '../components/ListItem'
@@ -7,76 +7,15 @@ import Container from '../components/Container'
 import Pagination from '../components/Pagination'
 import BackToTop from '../components/BackToTop'
 import { PAGINATED_TV_SHOWS, SEARCH_TV_SHOWS, BASE_IMG_URL, getHeaders } from '../utils/Endpoint'
-
-const storageManager = {
-  isStorageAvailable() {
-    try {
-      const testKey = '__storage_test__';
-      localStorage.setItem(testKey, testKey);
-      localStorage.removeItem(testKey);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  },
-  
-  safeSet(key, value) {
-    try {
-      localStorage.setItem(key, value);
-      return true;
-    } catch (e) {
-      console.warn('localStorage quota exceeded. Clearing old cache data...');
-      if (e.name === 'QuotaExceededError' || e.code === 22 || 
-          e.code === 1014 || // Firefox
-          e.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
-        this.clearOldCache();
-        try {
-          localStorage.setItem(key, value);
-          return true;
-        } catch (e2) {
-          console.error('Still cannot store data after clearing cache:', e2);
-          return false;
-        }
-      }
-      return false;
-    }
-  },
-  
-  clearOldCache() {
-    const keysToCheck = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if ((key.startsWith('cached') || key.startsWith('searchCache_')) && !key.endsWith('_timestamp')) {
-        const timestampKey = key + '_timestamp';
-        const timestamp = localStorage.getItem(timestampKey);
-        if (timestamp) {
-          keysToCheck.push({
-            key: key,
-            timestampKey: timestampKey,
-            time: parseInt(timestamp, 10)
-          });
-        }
-      }
-    }
-    
-    keysToCheck.sort((a, b) => a.time - b.time);
-    
-    const removeCount = Math.ceil(keysToCheck.length * 0.3);
-    for (let i = 0; i < removeCount && i < keysToCheck.length; i++) {
-      localStorage.removeItem(keysToCheck[i].key);
-      localStorage.removeItem(keysToCheck[i].timestampKey);
-    }
-  }
-};
+import { safeSetItem, safeGetItem, safeRemoveItem, clearAllCache } from '../utils/StorageHandler'
 
 const TvShows = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { searchTerm: urlSearchTerm } = useParams();
   
-  // Get search term from either URL path parameter or query parameter
-  const initialSearchTerm = urlSearchTerm || searchParams.get('q') || '';
+  // Get search term from query parameter
+  const initialSearchTerm = searchParams.get('search') || '';
   const initialPage = parseInt(searchParams.get('page') || '1', 10);
   
   const [tvShows, setTvShows] = useState([])
@@ -101,45 +40,64 @@ const TvShows = () => {
 
   // Back button function to return to previous page
   const handleBackNavigation = () => {
-    const previousLocation = localStorage.getItem("previousLocation");
+    const previousLocation = safeGetItem("previousLocation");
     
     // Reset search state
     setKeyword('');
     setSearchTerm('');
     setIsSearchMode(false);
     
-    if (previousLocation && !previousLocation.includes(searchTerm)) {
-      // Navigate to previous location
-      navigate(previousLocation);
+    if (previousLocation && !previousLocation.includes('search=')) {
+      // Navigate to previous location with replace option to avoid adding to history stack
+      navigate(previousLocation, { replace: true });
     } else {
-      // If no valid previous location is stored, go to TV home
+      // If no valid previous location is stored, go to TV home with replace option
       setPage(1);
-      navigate("/tv");
+      navigate("/tv", { replace: true });
     }
     
     // Clear the previous location from storage
-    localStorage.removeItem("previousLocation");
+    safeRemoveItem("previousLocation");
   };
 
   // Update URL when search term or page changes
   useEffect(() => {
+    // Create a new URLSearchParams object based on the current search params
+    const newSearchParams = new URLSearchParams(searchParams);
+    
     if (searchTerm) {
-      // Use the explicit TV search route structure
-      if (page > 1) {
-        navigate(`/tv/search/${searchTerm}?page=${page}`, { replace: true });
+      // Add search term to query parameters
+      newSearchParams.set('search', searchTerm);
+      
+      if (page !== 1) {
+        newSearchParams.set('page', page.toString());
       } else {
-        navigate(`/tv/search/${searchTerm}`, { replace: true });
+        newSearchParams.delete('page');
       }
     } else {
-      // Regular TV shows browsing with pagination
+      // Remove search parameter if not searching
+      newSearchParams.delete('search');
+      
       if (page !== 1) {
-        navigate(`/tv?page=${page}`, { replace: true });
+        newSearchParams.set('page', page.toString());
       } else {
-        // Default TV shows route, no query params
-        navigate('/tv', { replace: true });
+        newSearchParams.delete('page');
       }
     }
-  }, [searchTerm, page, navigate]);
+    
+    // Determine if this is a new search action
+    const isNewSearch = searchParams.get('search') !== searchTerm && searchTerm !== '';
+    
+    // Apply the updated search params
+    // Only use replace for pagination, not for new searches
+    if (isNewSearch) {
+      // For new searches, create a new history entry so back button works
+      setSearchParams(newSearchParams);
+    } else {
+      // For pagination or clearing search, replace the current entry
+      setSearchParams(newSearchParams, { replace: true });
+    }
+  }, [searchTerm, page, setSearchParams, searchParams]);
 
   // Initialize from URL parameters when component mounts
   useEffect(() => {
@@ -161,18 +119,17 @@ const TvShows = () => {
     console.log("Fetching TV shows from:", apiUrl);
     
     const cachedKey = `cachedTvShows_${validatedPage}`;
-    const cachedTvShowsData = localStorage.getItem(cachedKey);
-    const cachedTimestamp = localStorage.getItem(`${cachedKey}_timestamp`);
+    const cachedTvShowsData = safeGetItem(cachedKey);
+    const cachedTimestamp = safeGetItem(`${cachedKey}_timestamp`);
     const cacheExpiry = 30 * 60 * 1000; // 30 minutes
     
     if (cachedTvShowsData && cachedTimestamp) {
       const currentTime = new Date().getTime();
       if (currentTime - parseInt(cachedTimestamp) < cacheExpiry) {
         try {
-          const parsedData = JSON.parse(cachedTvShowsData);
           console.log("Using cached TV shows data");
-          setTvShows(parsedData.results);
-          setTotalPages(parsedData.total_pages > MAX_API_PAGE ? MAX_API_PAGE : parsedData.total_pages);
+          setTvShows(cachedTvShowsData.results);
+          setTotalPages(cachedTvShowsData.total_pages > MAX_API_PAGE ? MAX_API_PAGE : cachedTvShowsData.total_pages);
           setIsLoading(false);
           return;
         } catch (err) {
@@ -217,8 +174,8 @@ const TvShows = () => {
             results: response.results,
             total_pages: response.total_pages
           };
-          storageManager.safeSet(cachedKey, JSON.stringify(cacheData));
-          storageManager.safeSet(`${cachedKey}_timestamp`, new Date().getTime().toString());
+          safeSetItem(cachedKey, cacheData);
+          safeSetItem(`${cachedKey}_timestamp`, new Date().getTime());
           
           // Preload images for better UX
           response.results.forEach(show => {
@@ -258,28 +215,27 @@ const TvShows = () => {
     setError(null);
     
     const cachedKey = `searchCache_tvShow_${query.toLowerCase()}_${pageNum}`;
-    const cachedData = localStorage.getItem(cachedKey);
-    const cachedTimestamp = localStorage.getItem(`${cachedKey}_timestamp`);
+    const cachedData = safeGetItem(cachedKey);
+    const cachedTimestamp = safeGetItem(`${cachedKey}_timestamp`);
     const cacheExpiry = 30 * 60 * 1000; // 30 minutes
     
     if (cachedData && cachedTimestamp) {
       const currentTime = new Date().getTime();
       if (currentTime - parseInt(cachedTimestamp) < cacheExpiry) {
         try {
-          const parsedData = JSON.parse(cachedData);
           console.log("Using cached search data for page", pageNum);
           
           if (appendResults) {
-            setAllResults(prev => [...prev, ...parsedData.results]);
-            setTvShows(prev => [...prev, ...parsedData.results]);
+            setAllResults(prev => [...prev, ...cachedData.results]);
+            setTvShows(prev => [...prev, ...cachedData.results]);
             setLoadedPages(prev => new Set([...prev, pageNum]));
             setIsLoadingMore(false);
           } else {
-            setTvShows(parsedData.results);
-            setAllResults(parsedData.results);
+            setTvShows(cachedData.results);
+            setAllResults(cachedData.results);
           }
           
-          setTotalPages(Math.min(parsedData.total_pages, 500));
+          setTotalPages(Math.min(cachedData.total_pages, 500));
           
           if (!appendResults) {
             setIsLoading(false);
@@ -316,8 +272,8 @@ const TvShows = () => {
           
           setTotalPages(Math.min(data.total_pages, 500));
           
-          storageManager.safeSet(cachedKey, JSON.stringify(data));
-          storageManager.safeSet(`${cachedKey}_timestamp`, new Date().getTime().toString());
+          safeSetItem(cachedKey, data);
+          safeSetItem(`${cachedKey}_timestamp`, new Date().getTime());
           
           // Preload images
           data.results.forEach(show => {
@@ -372,11 +328,12 @@ const TvShows = () => {
 
   const executeSearch = () => {
     if (keyword.trim()) {
+      // Set search term to trigger URL update via the effect
       setSearchTerm(keyword.trim());
       setPage(1); // Reset to page 1 on new search
     } else {
       setSearchTerm('');
-      navigate('/tv', { replace: true });
+      setPage(1);
     }
   };
 
@@ -400,15 +357,7 @@ const TvShows = () => {
   };
   
   const clearCache = () => {
-    const keysToRemove = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key.startsWith('cached') || key.startsWith('searchCache_')) {
-        keysToRemove.push(key);
-      }
-    }
-    
-    keysToRemove.forEach(key => localStorage.removeItem(key));
+    clearAllCache(true); // Using the StorageHandler utility, preserving user data
     alert('Cache cleared successfully');
   };
 

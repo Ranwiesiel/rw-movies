@@ -226,9 +226,9 @@ const ListItem = memo((props) => {
     const handleClick = (e) => {
         const currentPath = location.pathname + location.search;
         
+        // Updated to check for search param instead of path
         const isSearchPage = (path) => {
-            return path.startsWith('/tv/search/') || 
-                   path.match(/^\/[^\/]+$/) && path !== '/tv' && path !== '/movie';
+            return path.includes('search=');
         };
         
         if (type === 'movie') {

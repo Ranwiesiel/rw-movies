@@ -123,12 +123,6 @@ const TvShowDetails = () => {
             <div className="bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded max-w-md mx-auto">
               <p className="font-bold mb-2">Error loading TV show details</p>
               <p>{error}</p>
-              <button 
-                onClick={handleGoBack} 
-                className="mt-4 inline-block bg-red-100 hover:bg-red-200 text-red-800 font-semibold py-2 px-4 rounded"
-              >
-                Go Back
-              </button>
               <Link 
                 to="/tv" 
                 className="block mt-3 text-sm text-red-600 hover:underline"
@@ -152,12 +146,6 @@ const TvShowDetails = () => {
         <Container>
           <div className="py-20 text-center">
             <p className="text-gray-600">TV show not found</p>
-            <button 
-              onClick={handleGoBack}
-              className="mt-4 inline-block bg-blue-100 hover:bg-blue-200 text-blue-800 font-semibold py-2 px-4 rounded"
-            >
-              Go Back
-            </button>
             <Link 
               to="/tv"
               className="block mt-3 text-sm text-blue-600 hover:underline"
@@ -213,20 +201,7 @@ const TvShowDetails = () => {
       
       {/* Back to top button */}
       <BackToTop />
-      
-      {/* Simple fixed Back button */}
-      <div className="fixed bottom-6 left-6 z-20">
-        <button 
-          onClick={handleGoBack}
-          className="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full shadow-lg"
-          title="Go back"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
-        </button>
-      </div>
-      
+            
       {/* Hero section with background image */}
       <div 
         style={{
@@ -252,23 +227,7 @@ const TvShowDetails = () => {
                 <div className="w-full h-96 bg-gray-200 rounded-lg flex items-center justify-center">
                   <span className="text-gray-500">No poster available</span>
                 </div>
-              )}
-              
-              {/* Back button for mobile view */}
-              <div className="mt-4 flex flex-col gap-2 md:hidden">
-                <button 
-                  onClick={handleGoBack}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded transition-colors"
-                >
-                  Go Back
-                </button>
-                <Link 
-                  to="/tv"
-                  className="w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded transition-colors text-center"
-                >
-                  TV Shows
-                </Link>
-              </div>
+              )}              
             </div>
 
             {/* Details */}
@@ -345,23 +304,7 @@ const TvShowDetails = () => {
                     {tvShow.created_by.map(person => person.name).join(', ')}
                   </p>
                 </div>
-              )}
-              
-              {/* Back buttons for desktop view */}
-              <div className="hidden md:flex mt-4 gap-3">
-                <button 
-                  onClick={handleGoBack}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded transition-colors"
-                >
-                  Go Back
-                </button>
-                <Link 
-                  to="/tv"
-                  className="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded transition-colors"
-                >
-                  TV Shows
-                </Link>
-              </div>
+              )}              
             </div>
           </div>
         </Container>
@@ -479,23 +422,7 @@ const TvShowDetails = () => {
               </div>
             )}
           </div>
-        </div>
-        
-        {/* Additional Back buttons at bottom */}
-        <div className="mt-8 pb-8 flex justify-center gap-4">
-          <button 
-            onClick={handleGoBack}
-            className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg shadow transition-colors"
-          >
-            Go Back
-          </button>
-          <Link 
-            to="/tv"
-            className="bg-gray-500 hover:bg-gray-600 text-white font-semibold py-3 px-6 rounded-lg shadow transition-colors"
-          >
-            TV Shows
-          </Link>
-        </div>
+        </div>        
       </Container>
     </>
   );

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { useSearchParams, useParams, useNavigate } from 'react-router-dom'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import SEO from '../utils/SEO'
 import Input from '../components/Input'
 import ListItem from '../components/ListItem'
@@ -7,68 +7,7 @@ import Container from '../components/Container'
 import Pagination from '../components/Pagination'
 import BackToTop from '../components/BackToTop'
 import { PAGINATED_MOVIES, SEARCH_MOVIES, BASE_IMG_URL, getHeaders } from '../utils/Endpoint'
-
-// Utility for managing localStorage limits
-const storageManager = {
-  isStorageAvailable() {
-    try {
-      const testKey = '__storage_test__';
-      localStorage.setItem(testKey, testKey);
-      localStorage.removeItem(testKey);
-      return true;
-    } catch {
-      return false;
-    }
-  },
-  
-  safeSet(key, value) {
-    try {
-      localStorage.setItem(key, value);
-      return true;
-    } catch (e) {
-      console.warn('localStorage quota exceeded. Clearing old cache data...');
-      if (e.name === 'QuotaExceededError' || e.code === 22 || 
-          e.code === 1014 || 
-          e.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
-        this.clearOldCache();
-        try {
-          localStorage.setItem(key, value);
-          return true;
-        } catch (e2) {
-          console.error('Still cannot store data after clearing cache:', e2);
-          return false;
-        }
-      }
-      return false;
-    }
-  },
-  
-  clearOldCache() {
-    const keysToCheck = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if ((key.startsWith('cached') || key.startsWith('searchCache_')) && !key.endsWith('_timestamp')) {
-        const timestampKey = key + '_timestamp';
-        const timestamp = localStorage.getItem(timestampKey);
-        if (timestamp) {
-          keysToCheck.push({
-            key: key,
-            timestampKey: timestampKey,
-            time: parseInt(timestamp, 10)
-          });
-        }
-      }
-    }
-    
-    keysToCheck.sort((a, b) => a.time - b.time);
-    
-    const removeCount = Math.ceil(keysToCheck.length * 0.3);
-    for (let i = 0; i < removeCount && i < keysToCheck.length; i++) {
-      localStorage.removeItem(keysToCheck[i].key);
-      localStorage.removeItem(keysToCheck[i].timestampKey);
-    }
-  }
-};
+import { safeSetItem, safeGetItem, safeRemoveItem, clearAllCache } from '../utils/StorageHandler'
 
 // Scroll position memory
 const scrollPositionMemory = {
@@ -89,11 +28,10 @@ const scrollPositionMemory = {
 
 const Movie = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { searchTerm: urlSearchTerm } = useParams();
   const navigate = useNavigate();
   
-  // Get search term from either URL path parameter or query parameter
-  const initialSearchTerm = urlSearchTerm || searchParams.get('q') || '';
+  // Get search term from query parameter
+  const initialSearchTerm = searchParams.get('search') || '';
   const initialPage = parseInt(searchParams.get('page') || '1', 10);
   
   const [movies, setMovies] = useState([]);
@@ -118,48 +56,64 @@ const Movie = () => {
 
   // Modify handleBackNavigation function to properly reset the search state and URL
   const handleBackNavigation = () => {
-    const previousLocation = localStorage.getItem("previousLocation");
+    const previousLocation = safeGetItem("previousLocation");
     
-    // Reset search state
+    // Reset search state immediately
     setKeyword('');
     setSearchTerm('');
     setIsSearchMode(false);
     
-    if (previousLocation && !previousLocation.includes(searchTerm)) {
-      // Navigate to previous location
-      navigate(previousLocation);
+    if (previousLocation && !previousLocation.includes('search=')) {
+      // Navigate to previous location with replace option to avoid adding to history stack
+      navigate(previousLocation, { replace: true });
     } else {
-      // If no valid previous location is stored, go to home
+      // If no valid previous location is stored, go to home with replace option
       setPage(1);
-      navigate("/");
+      navigate("/", { replace: true });
     }
     
     // Clear the previous location from storage
-    localStorage.removeItem("previousLocation");
+    safeRemoveItem("previousLocation");
   };
 
   // Update URL when search term or page changes
   useEffect(() => {
-    // Create a new URLSearchParams object
-    const newSearchParams = new URLSearchParams();
-    
-    if (page !== 1) {
-      newSearchParams.set('page', page.toString());
-    }
+    // Create a new URLSearchParams object based on the current search params
+    const newSearchParams = new URLSearchParams(searchParams);
     
     if (searchTerm) {
-      // Use the simplified search format - /{searchTerm}
-      navigate(`/${searchTerm}${page > 1 ? `?page=${page}` : ''}`, { replace: false });
-    } else {
-      // Regular movie browsing with pagination
+      // Add search term to query parameters
+      newSearchParams.set('search', searchTerm);
+      
       if (page !== 1) {
-        navigate(`/?page=${page}`, { replace: false });
+        newSearchParams.set('page', page.toString());
       } else {
-        // Default route, no need for query params
-        navigate('/', { replace: false });
+        newSearchParams.delete('page');
+      }
+    } else {
+      // Remove search parameter if not searching
+      newSearchParams.delete('search');
+      
+      if (page !== 1) {
+        newSearchParams.set('page', page.toString());
+      } else {
+        newSearchParams.delete('page');
       }
     }
-  }, [searchTerm, page, navigate]);
+    
+    // Determine if this is a new search action
+    const isNewSearch = searchParams.get('search') !== searchTerm && searchTerm !== '';
+    
+    // Apply the updated search params
+    // Only use replace for pagination, not for new searches
+    if (isNewSearch) {
+      // For new searches, create a new history entry so back button works
+      setSearchParams(newSearchParams);
+    } else {
+      // For pagination or clearing search, replace the current entry
+      setSearchParams(newSearchParams, { replace: true });
+    }
+  }, [searchTerm, page, setSearchParams, searchParams]);
 
   const fetchMovies = useCallback((pageNum = 1) => {
     setIsLoading(true);
@@ -169,18 +123,17 @@ const Movie = () => {
     const validatedPage = Math.min(pageNum, MAX_API_PAGE);
     const apiUrl = PAGINATED_MOVIES(validatedPage);
     const cachedKey = `cachedMovies_${validatedPage}`;
-    const cachedMoviesData = localStorage.getItem(cachedKey);
-    const cachedTimestamp = localStorage.getItem(`${cachedKey}_timestamp`);
+    const cachedMoviesData = safeGetItem(cachedKey);
+    const cachedTimestamp = safeGetItem(`${cachedKey}_timestamp`);
     const cacheExpiry = 30 * 60 * 1000;
     
     if (cachedMoviesData && cachedTimestamp) {
       const currentTime = new Date().getTime();
       if (currentTime - parseInt(cachedTimestamp) < cacheExpiry) {
         try {
-          const parsedData = JSON.parse(cachedMoviesData);
           console.log("Using cached movie data");
-          setMovies(parsedData.results);
-          setTotalPages(parsedData.total_pages > MAX_API_PAGE ? MAX_API_PAGE : parsedData.total_pages);
+          setMovies(cachedMoviesData.results);
+          setTotalPages(cachedMoviesData.total_pages > MAX_API_PAGE ? MAX_API_PAGE : cachedMoviesData.total_pages);
           setIsLoading(false);
           return;
         } catch (err) {
@@ -225,8 +178,8 @@ const Movie = () => {
             results: response.results,
             total_pages: response.total_pages
           };
-          storageManager.safeSet(cachedKey, JSON.stringify(cacheData));
-          storageManager.safeSet(`${cachedKey}_timestamp`, new Date().getTime().toString());
+          safeSetItem(cachedKey, cacheData);
+          safeSetItem(`${cachedKey}_timestamp`, new Date().getTime());
           
           response.results.forEach(movie => {
             if (movie.poster_path) {
@@ -263,26 +216,25 @@ const Movie = () => {
     setError(null);
     
     const cachedKey = `searchCache_movie_${query.toLowerCase()}_${pageNum}`;
-    const cachedData = localStorage.getItem(cachedKey);
-    const cachedTimestamp = localStorage.getItem(`${cachedKey}_timestamp`);
+    const cachedData = safeGetItem(cachedKey);
+    const cachedTimestamp = safeGetItem(`${cachedKey}_timestamp`);
     const cacheExpiry = 30 * 60 * 1000;
     
     if (cachedData && cachedTimestamp) {
       const currentTime = new Date().getTime();
       if (currentTime - parseInt(cachedTimestamp) < cacheExpiry) {
         try {
-          const parsedData = JSON.parse(cachedData);
           console.log("Using cached search data for page", pageNum);
           
           if (appendResults) {
-            setMovies(prev => [...prev, ...parsedData.results]);
+            setMovies(prev => [...prev, ...cachedData.results]);
             setLoadedPages(prev => new Set([...prev, pageNum]));
             setIsLoadingMore(false);
           } else {
-            setMovies(parsedData.results);
+            setMovies(cachedData.results);
           }
           
-          setTotalPages(Math.min(parsedData.total_pages, 500));
+          setTotalPages(Math.min(cachedData.total_pages, 500));
           
           if (!appendResults) {
             setIsLoading(false);
@@ -317,8 +269,8 @@ const Movie = () => {
           
           setTotalPages(Math.min(data.total_pages, 500));
           
-          storageManager.safeSet(cachedKey, JSON.stringify(data));
-          storageManager.safeSet(`${cachedKey}_timestamp`, new Date().getTime().toString());
+          safeSetItem(cachedKey, data);
+          safeSetItem(`${cachedKey}_timestamp`, new Date().getTime());
           
           // Preload images
           data.results.forEach(movie => {
@@ -379,12 +331,12 @@ const Movie = () => {
 
   const executeSearch = () => {
     if (keyword.trim()) {
-      // Use the simplified search route pattern
+      // Set search term to trigger URL update via the effect
       setSearchTerm(keyword.trim());
       setPage(1); // Reset to page 1 on new search
     } else {
       setSearchTerm('');
-      navigate('/', { replace: true });
+      setPage(1);
     }
   };
 
@@ -451,15 +403,7 @@ const Movie = () => {
   }, [page, searchTerm]);
 
   const clearCache = () => {
-    const keysToRemove = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key.startsWith('cached') || key.startsWith('searchCache_')) {
-        keysToRemove.push(key);
-      }
-    }
-    
-    keysToRemove.forEach(key => localStorage.removeItem(key));
+    clearAllCache(true); // Using the StorageHandler utility, preserving user data
     alert('Cache cleared successfully');
   };
 
