@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import SEO from '../utils/SEO';
 import Container from '../components/Container';
@@ -12,6 +12,84 @@ const MovieDetails = () => {
   const [movie, setMovie] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // Player state
+  const [isPlayerLoading, setIsPlayerLoading] = useState(false);
+  const [playerError, setPlayerError] = useState(null);
+  const [embedSource, setEmbedSource] = useState('default'); // 'default', 'alternative', 'fallback'
+  const [showPlayer, setShowPlayer] = useState(true);
+  const playerRef = useRef(null);
+
+  // Function to restart player with the current source
+  const restartPlayer = () => {
+    setIsPlayerLoading(true);
+    setPlayerError(null);
+    setShowPlayer(false);
+    setTimeout(() => {
+      setShowPlayer(true);
+    }, 50);
+  };
+
+  // Function to switch to a specific source
+  const switchSource = (source) => {
+    if (embedSource !== source) {
+      setEmbedSource(source);
+      setIsPlayerLoading(true);
+      setPlayerError(null);
+      restartPlayer();
+    }
+  };
+
+  // Get source name for display
+  const getSourceName = (source) => {
+    switch(source) {
+      case 'alternative':
+        return 'Source 2';
+      case 'fallback':
+        return 'Source 3';
+      case 'default':
+      default:
+        return 'Source 1';
+    }
+  };
+
+  // Function to handle player load events
+  const handlePlayerLoad = () => {
+    setIsPlayerLoading(false);
+    setPlayerError(null);
+  };
+
+  // Function to handle player errors
+  const handlePlayerError = () => {
+    setIsPlayerLoading(false);
+    
+    if (embedSource === 'default') {
+      // Try alternative source
+      setPlayerError("Primary player failed. Trying alternative source...");
+      setEmbedSource('alternative');
+      restartPlayer();
+    } else if (embedSource === 'alternative') {
+      // Try fallback source
+      setPlayerError("Alternative player failed. Trying fallback source...");
+      setEmbedSource('fallback');
+      restartPlayer();
+    } else {
+      setPlayerError("Failed to load video player. Please try again later or check if this movie is available.");
+    }
+  };
+  
+  // Generate the embed URL based on the current source
+  const getEmbedUrl = () => {
+    switch(embedSource) {
+      case 'alternative':
+        return `https://vidsrc.xyz/embed/movie?tmdb=${id}`;
+      case 'fallback':
+        return `https://www.2embed.cc/embed/${id}`;
+      case 'default':
+      default:
+        return `https://embed.su/embed/movie/${id}`;
+    }
+  };
 
   // Improved back navigation function
   const handleGoBack = () => {
@@ -346,15 +424,45 @@ const MovieDetails = () => {
           <h2 className="text-2xl font-bold mb-4">Watch Movie</h2>
           <div className="bg-white rounded-lg shadow-md p-4">
             <div className="aspect-video mb-4 bg-gray-900 rounded overflow-hidden">
-              <iframe
-                src={`https://embed.su/embed/movie/${movie.id}`}
-                width="100%"
-                height="100%"
-                frameBorder="0"
-                allowFullScreen
-                className="w-full h-full"
-                title={`${movie.title} Player`}
-              ></iframe>
+              {showPlayer && (
+                <iframe
+                  src={getEmbedUrl()}
+                  width="100%"
+                  height="100%"
+                  frameBorder="0"
+                  allowFullScreen
+                  className="w-full h-full"
+                  title={`${movie.title} Player`}
+                  onLoad={handlePlayerLoad}
+                  onError={handlePlayerError}
+                ></iframe>
+              )}
+            </div>
+            {isPlayerLoading && (
+              <div className="text-center">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mb-4"></div>
+                <p>Loading player...</p>
+              </div>
+            )}
+            {playerError && (
+              <div className="text-center text-red-500">
+                <p>{playerError}</p>
+              </div>
+            )}
+            <div className="flex justify-center gap-4 mb-4">
+              {['default', 'alternative', 'fallback'].map(source => (
+                <button
+                  key={source}
+                  onClick={() => switchSource(source)}
+                  className={`px-4 py-2 rounded-lg ${
+                    embedSource === source
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                  }`}
+                >
+                  {getSourceName(source)}
+                </button>
+              ))}
             </div>
             <p className="text-gray-700 text-sm">
               If the player doesn't load correctly, please try refreshing the page or check back later.

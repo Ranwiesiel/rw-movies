@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { TV_SEASON_EPISODES, BASE_IMG_URL, getHeaders } from '../utils/Endpoint';
 
 const SeasonEpisodes = ({ tvId, seasons }) => {
@@ -10,6 +10,10 @@ const SeasonEpisodes = ({ tvId, seasons }) => {
   const [showPlayer, setShowPlayer] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const [retryDelay, setRetryDelay] = useState(2000);
+  const [isPlayerLoading, setIsPlayerLoading] = useState(false);
+  const [playerError, setPlayerError] = useState(null);
+  const [embedSource, setEmbedSource] = useState('default'); // 'default', 'alternative', 'fallback'
+  const playerRef = useRef(null);
 
   const fetchSeasonEpisodes = useCallback(async (skipCache = false) => {
     if (!tvId || !selectedSeason) return;
@@ -126,13 +130,51 @@ const SeasonEpisodes = ({ tvId, seasons }) => {
       setShowPlayer(false);
     } else {
       setActiveEpisode(episodeNumber);
-      setShowPlayer(false); // Reset player state when viewing a different episode
     }
   };
 
   // Function to start watching an episode (load the player)
   const startWatchingEpisode = () => {
+    setIsPlayerLoading(true);
+    setPlayerError(null);
+    setEmbedSource('default');
     setShowPlayer(true);
+  };
+
+  // Function to handle player load events
+  const handlePlayerLoad = () => {
+    setIsPlayerLoading(false);
+    setPlayerError(null);
+  };
+
+  // Function to handle player errors
+  const handlePlayerError = () => {
+    setIsPlayerLoading(false);
+
+    if (embedSource === 'default') {
+      // Try alternative source
+      setPlayerError("Primary player failed. Trying alternative source...");
+      setEmbedSource('alternative');
+    } else if (embedSource === 'alternative') {
+      // Try fallback source
+      setPlayerError("Alternative player failed. Trying fallback source...");
+      setEmbedSource('fallback');
+    } else {
+      setPlayerError("Failed to load video player. Please try again later or check if this episode is available.");
+    }
+  };
+
+  // Generate the embed URL based on the current source
+  const getEmbedUrl = (episodeNumber) => {
+    switch(embedSource) {
+      case 'alternative':
+        return `https://vidsrc.xyz/embed/tv?tmdb=${tvId}&season=${selectedSeason}&episode=${episodeNumber}`;
+      case 'fallback':
+        return `https://www.2embed.cc/embedtv/${tvId}&s=${selectedSeason}&e=${episodeNumber}`;
+      case 'default':
+      default:
+        return `https://embed.su/embed/tv/${tvId}/${selectedSeason}/${episodeNumber}`;
+    }
   };
 
   // Use useMemo to prevent unnecessary recalculations
@@ -227,16 +269,24 @@ const SeasonEpisodes = ({ tvId, seasons }) => {
                 <h6 className="font-medium text-gray-900 mb-2">Watch Episode:</h6>
                 <div className="aspect-video overflow-hidden rounded-lg shadow-lg bg-black">
                   <iframe
-                    src={`https://embed.su/embed/tv/${tvId}/${selectedSeason}/${episode.episode_number}`}
+                    key={`player-${tvId}-${selectedSeason}-${episode.episode_number}-${Date.now()}`}
+                    src={getEmbedUrl(episode.episode_number)}
                     width="100%"
                     height="100%"
                     frameBorder="0"
                     allowFullScreen
                     className="w-full h-full"
                     title={`${seasonData.name || 'Season'} ${selectedSeason} Episode ${episode.episode_number}`}
+                    onLoad={handlePlayerLoad}
+                    onError={handlePlayerError}
                   ></iframe>
                 </div>
-                <p className="text-xs text-gray-500 mt-2">If the video doesn't load, try clicking the play button again</p>
+                {isPlayerLoading && (
+                  <p className="text-xs text-gray-500 mt-2">Loading video player...</p>
+                )}
+                {playerError && (
+                  <p className="text-xs text-red-500 mt-2">{playerError}</p>
+                )}
               </div>
             )}
 
@@ -289,7 +339,7 @@ const SeasonEpisodes = ({ tvId, seasons }) => {
         )}
       </div>
     ));
-  }, [seasonData?.episodes, activeEpisode, tvId, selectedSeason]);
+  }, [seasonData?.episodes, activeEpisode, tvId, selectedSeason, isPlayerLoading, playerError, embedSource]);
 
   if (!seasons || seasons.length === 0) {
     return <div className="text-center py-4">No seasons information available</div>;
