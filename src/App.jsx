@@ -5,6 +5,8 @@ import TvShows from './pages/TvShows';
 import TvShowDetails from './pages/TvShowDetails';
 import MovieDetails from './pages/MovieDetails';
 import Navigation from './components/Navigation';
+import './style/index.css'
+
 
 const App = () => {
   return (

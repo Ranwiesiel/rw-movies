@@ -209,7 +209,7 @@ const MovieDetails = () => {
   
   if (!movie) {
     return (
-      <Container>
+      <Container className='dark'>
         <div className='py-8 text-center'>
           <p>Movie not found</p>
           <button 
@@ -239,7 +239,7 @@ const MovieDetails = () => {
   };
   
   return (
-    <>
+    <div className='bg-white dark:bg-gray-800'>
       <SEO 
         title={`${movie.title || 'Movie Details'}`}
         description={movie.overview || `Details about ${movie.title}`}
@@ -400,7 +400,7 @@ const MovieDetails = () => {
       <Container>
         {movie.videos && movie.videos.results && movie.videos.results.length > 0 && (
           <div className="py-8">
-            <h2 className="text-2xl font-bold mb-4">Videos</h2>
+            <h2 className="text-gray-800 dark:text-gray-200 text-2xl font-bold mb-4">Videos</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {movie.videos.results.slice(0, 3).map(video => (
                 <div key={video.id} className="aspect-video bg-gray-900 rounded overflow-hidden">
@@ -421,8 +421,8 @@ const MovieDetails = () => {
 
         {/* Movie Player */}
         <div className="py-8">
-          <h2 className="text-2xl font-bold mb-4">Watch Movie</h2>
-          <div className="bg-white rounded-lg shadow-md p-4">
+          <h2 className="text-gray-800 dark:text-gray-200 text-2xl font-bold mb-4">Watch Movie</h2>
+          <div className="dark:bg-card bg-gray-200 rounded-lg shadow-md p-4">
             <div className="aspect-video mb-4 bg-gray-900 rounded overflow-hidden">
               {showPlayer && (
                 <iframe
@@ -457,20 +457,20 @@ const MovieDetails = () => {
                   className={`px-4 py-2 rounded-lg ${
                     embedSource === source
                       ? 'bg-blue-600 text-white'
-                      : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                      : 'bg-gray-300 text-gray-800 hover:bg-blue-300'
                   }`}
                 >
                   {getSourceName(source)}
                 </button>
               ))}
             </div>
-            <p className="text-gray-700 text-sm">
-              If the player doesn't load correctly, please try refreshing the page or check back later.
+            <p className="dark:text-white text-custom-secondary text-sm">
+              {"If the player does't load correctly, please try refreshing the page or check back later."}
             </p>
           </div>
         </div>
       </Container>
-    </>
+    </div>
   );
 };
 

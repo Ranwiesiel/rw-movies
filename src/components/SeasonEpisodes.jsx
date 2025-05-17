@@ -189,14 +189,14 @@ const SeasonEpisodes = ({ tvId, seasons }) => {
     return seasonData.episodes.map((episode) => (
       <div
         key={episode.id}
-        className={`border rounded-md transition-all duration-300 hover:shadow-md ${
+        className={` border rounded-md transition-all duration-300 hover:shadow-md ${
           activeEpisode === episode.episode_number
-            ? 'border-blue-400 bg-blue-50 shadow-md'
-            : 'border-gray-200 hover:border-blue-200'
+            ? 'border-gray-300 bg-blue-50 shadow-md'
+            : 'border-gray-200 dark:border-gray-600 hover:border-blue-200'
         }`}
       >
         {/* Episode header (always visible) */}
-        <div className="p-3 flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="p-3 dark:bg-card flex flex-col sm:flex-row sm:items-center gap-3">
           {/* Episode thumbnail */}
           <div className="sm:w-36 flex-shrink-0">
             {episode.still_path ? (
@@ -207,30 +207,30 @@ const SeasonEpisodes = ({ tvId, seasons }) => {
                 loading="lazy"
               />
             ) : (
-              <div className="bg-gray-200 rounded w-full h-20 flex items-center justify-center">
+              <div className="bg-gray-200 dark:bg-gray-800 rounded w-full h-20 flex items-center justify-center">
                 <span className="text-gray-500 text-sm">No image</span>
               </div>
             )}
           </div>
 
           {/* Episode info */}
-          <div className="flex-grow">
+          <div className="flex-grow ">
             <h5 className="font-medium">
               {episode.episode_number}. {episode.name || `Episode ${episode.episode_number}`}
             </h5>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-sm text-gray-600 dark:text-white mt-1">
               {episode.air_date ? new Date(episode.air_date).toLocaleDateString() : 'No air date'}
               {episode.runtime ? ` • ${episode.runtime} min` : ''}
             </p>
             {episode.overview && (
-              <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+              <p className="text-sm text-gray-600 dark:text-white  mt-1 line-clamp-2">
                 {episode.overview}
               </p>
             )}
           </div>
 
           {/* Actions */}
-          <div className="flex gap-2 mt-2 sm:mt-0">
+          <div className="flex gap-2 mt-2 sm:mt-0 ">
             {episode.vote_average > 0 && (
               <div className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-medium flex items-center gap-1 h-fit">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
@@ -241,7 +241,7 @@ const SeasonEpisodes = ({ tvId, seasons }) => {
             )}
             <button
               onClick={() => toggleEpisodeDetails(episode.episode_number)}
-              className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-1 rounded text-sm font-medium transition-colors"
+              className="bg-gray-red- dark:bg-gray-800 dark:text-white hover:bg-gray-200 text-gray-800 px-3 py-1 rounded text-sm font-medium transition-colors"
             >
               {activeEpisode === episode.episode_number ? 'Hide Details' : 'Details'}
             </button>
@@ -262,11 +262,11 @@ const SeasonEpisodes = ({ tvId, seasons }) => {
 
         {/* Episode expanded details */}
         {activeEpisode === episode.episode_number && (
-          <div className="border-t border-gray-200 p-4 bg-blue-50/50">
+          <div className="border-t border-gray-200 p-4  dark:bg-card">
             {/* Embed player - only load when explicitly requested */}
             {showPlayer && (
               <div className="mb-4">
-                <h6 className="font-medium text-gray-900 mb-2">Watch Episode:</h6>
+                <h6 className="font-medium text-gray-900 dark:text-white mb-2">Watch Episode:</h6>
                 <div className="aspect-video overflow-hidden rounded-lg shadow-lg bg-black">
                   <iframe
                     key={`player-${tvId}-${selectedSeason}-${episode.episode_number}-${Date.now()}`}
@@ -304,8 +304,8 @@ const SeasonEpisodes = ({ tvId, seasons }) => {
 
             {episode.overview && (
               <div className="mb-3">
-                <h6 className="font-medium text-gray-900 mb-1">Overview:</h6>
-                <p className="text-gray-700">
+                <h6 className="font-medium text-gray-900 mb-1 dark:text-white">Overview:</h6>
+                <p className="text-gray-700 dark:text-gray-300">
                   {episode.overview}
                 </p>
               </div>
@@ -313,8 +313,8 @@ const SeasonEpisodes = ({ tvId, seasons }) => {
 
             {episode.guest_stars && episode.guest_stars.length > 0 && (
               <div className="mb-3">
-                <h6 className="font-medium text-gray-900 mb-1">Guest Stars:</h6>
-                <p className="text-sm text-gray-600">
+                <h6 className="font-medium text-gray-900 mb-1 dark:text-white">Guest Stars:</h6>
+                <p className="text-sm text-gray-600 dark:text-gray-300">
                   {episode.guest_stars
                     .slice(0, 5)
                     .map(star => star.name)
@@ -346,8 +346,8 @@ const SeasonEpisodes = ({ tvId, seasons }) => {
   }
 
   return (
-    <div className="mt-6 bg-white rounded-lg shadow-md p-4">
-      <h3 className="text-xl font-semibold mb-4 flex items-center text-gray-800">
+    <div className="mt-6 bg-gray-100 dark:bg-card dark:text-white rounded-lg shadow-md p-4">
+      <h3 className="text-xl font-semibold mb-4 flex items-center text-gray-800 dark:text-white">
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
         </svg>
@@ -356,7 +356,7 @@ const SeasonEpisodes = ({ tvId, seasons }) => {
 
       {/* Season selector */}
       <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-2">Select Season:</label>
+        <label className="block text-sm font-medium text-gray-700 dark:text-white mb-2">Select Season:</label>
         <div className="flex flex-wrap gap-2">
           {sortedSeasons.map((season) => (
             <button
@@ -365,7 +365,7 @@ const SeasonEpisodes = ({ tvId, seasons }) => {
               className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-300 
                 ${selectedSeason === season.season_number 
                   ? 'bg-blue-600 text-white shadow-md' 
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                  : 'bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600'}`}
             >
               Season {season.season_number}
             </button>
@@ -397,13 +397,13 @@ const SeasonEpisodes = ({ tvId, seasons }) => {
         )}
 
         {!isLoading && !error && seasonData && seasonData.episodes && (
-          <div>
-            <div className="flex items-center justify-between bg-gray-50 p-2 rounded mb-4 border border-gray-100">
+          <div >
+            <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-800 p-2 rounded mb-4 border border-gray-100 dark:border-gray-600">
               <h4 className="font-medium">
                 {seasonData.name || `Season ${seasonData.season_number}`} • {seasonData.episodes.length} Episodes
               </h4>
               {seasonData.air_date && (
-                <span className="text-sm text-gray-600 bg-blue-50 px-2 py-1 rounded-full">
+                <span className="text-sm text-gray-600 bg-blue-50 dark:bg-gray-600 dark:text-white px-2 py-1 rounded-full">
                   First aired: {new Date(seasonData.air_date).toLocaleDateString()}
                 </span>
               )}
@@ -422,7 +422,7 @@ const SeasonEpisodes = ({ tvId, seasons }) => {
         )}
 
         {!isLoading && !error && (!seasonData || !seasonData.episodes || seasonData.episodes.length === 0) && (
-          <div className="text-center py-8 bg-gray-50 rounded-lg border border-gray-200">
+          <div className=" text-center py-8 bg-gray-50 rounded-lg border border-gray-200">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-gray-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>

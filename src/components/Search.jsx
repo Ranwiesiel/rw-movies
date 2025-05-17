@@ -1,4 +1,4 @@
-import { useContext, useState, useEffect } from "react";
+import { useContext, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { MovieContext } from "../contexts/MovieContext";
 import { SEARCH_MOVIES, getHeaders } from "../utils/Endpoint";

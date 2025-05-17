@@ -8,6 +8,10 @@ import Pagination from '../components/Pagination'
 import BackToTop from '../components/BackToTop'
 import { PAGINATED_MOVIES, SEARCH_MOVIES, BASE_IMG_URL, getHeaders } from '../utils/Endpoint'
 import { safeSetItem, safeGetItem, safeRemoveItem, clearAllCache } from '../utils/StorageHandler'
+import { useTheme } from "../theme/darkMode";
+
+
+
 
 // Scroll position memory
 const scrollPositionMemory = {
@@ -421,7 +425,7 @@ const Movie = () => {
   };
     
   return (
-    <>
+    <div className="bg-white text-black dark:bg-bg dark:text-white">
       <SEO 
         title="Discover Movies"
         description="Find the latest and greatest movies from around the world. Search for your favorites or discover new titles to watch."
@@ -479,154 +483,149 @@ const Movie = () => {
       </div>
 
       <Container>
-        {isLoading && (
-          <div className='py-8 md:py-16 text-center'>
-            <div className="inline-block animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500 mb-4"></div>
-            <p className="text-gray-600">
-              {isSearchMode 
-                ? `Searching for "${searchTerm}"...` 
-                : "Loading movies..."}
-            </p>
-          </div>
-        )}
-        
-        {error && !isLoading && (
-          <div className='py-6 md:py-12 text-center'>
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-4 rounded-lg max-w-md mx-auto shadow-sm">
-              <p className="font-bold mb-1">Error loading movies</p>
-              <p className="text-sm">{error}</p>
-              <button 
-                onClick={() => searchTerm ? searchMovies(searchTerm, page) : fetchMovies(page)} 
-                className="mt-3 bg-red-100 hover:bg-red-200 text-red-800 font-semibold py-2 px-4 rounded transition-colors"
-              >
-                Try Again
-              </button>
-            </div>
-          </div>
-        )}
-        
-        {!isLoading && !error && (
-          <>
-            <div className='py-6 md:py-8'>
-              <div className="flex flex-col sm:flex-row justify-between items-center mb-4 md:mb-6 px-2 sm:px-0">
-                <h2 className="text-xl md:text-2xl font-bold text-gray-800 mb-2 sm:mb-0 flex items-center">
-                  {searchTerm 
-                    ? (
-                      <>
-                        <span className="text-blue-600 mr-2">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                          </svg>
-                        </span>
-                        Results for "{searchTerm}"
-                        {/* Add Back Button Here */}
-                        <button 
-                          onClick={handleBackNavigation} 
-                          className="ml-3 text-sm bg-gray-100 hover:bg-gray-200 text-gray-800 py-1 px-3 rounded-full flex items-center transition-colors"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                          </svg>
-                          Back
-                        </button>
-                      </> 
-                    ) 
-                    : (
-                      <>
-                        <span className="text-blue-600 mr-2">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                          </svg>
-                        </span>
-                        Popular Movies
-                      </>
-                    )}
-                </h2>
-                <p className="text-sm md:text-base text-gray-600">
-                  {isSearchMode && totalPages > 1 
-                    ? <span className="flex items-center"><span className="inline-block w-2 h-2 rounded-full bg-blue-500 mr-2"></span>{movies.length} results (Page {page} of {totalPages})</span>
-                    : page > totalPages 
-                      ? <span className="text-red-600">Page {page} exceeds maximum of {totalPages}</span> 
-                      : <span className="flex items-center"><span className="inline-block w-2 h-2 rounded-full bg-green-500 mr-2"></span>Page {page} of {totalPages}</span>
-                  }
-                </p>
-              </div>
-              
-              <div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6 px-2 sm:px-0'>
-                {movies.length > 0 ? (
-                  movies.map((movie) => (
-                    <ListItem 
-                      key={movie.id}
-                      posterPath={movie.poster_path}
-                      id={movie.id}
-                      title={movie.title || 'Untitled'}
-                      rating={movie.vote_average || 0}
-                      releaseDate={movie.release_date}
-                    />
-                  ))
-                ) : (
-                  <div className="col-span-full text-center py-12 md:py-16">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M12 14a7 7 0 110-14 7 7 0 010 14z" />
+  {isLoading && (
+    <div className='py-8 md:py-16 text-center'>
+      <div className="inline-block animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500 mb-4"></div>
+      <p className="text-gray-600 dark:text-gray-300">
+        {isSearchMode 
+          ? `Searching for "${searchTerm}"...` 
+          : "Loading movies..."}
+      </p>
+    </div>
+  )}
+
+  {error && !isLoading && (
+    <div className='py-6 md:py-12 text-center'>
+      <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-600 text-red-700 dark:text-red-200 px-4 py-4 rounded-lg max-w-md mx-auto shadow-sm">
+        <p className="font-bold mb-1">Error loading movies</p>
+        <p className="text-sm">{error}</p>
+        <button 
+          onClick={() => searchTerm ? searchMovies(searchTerm, page) : fetchMovies(page)} 
+          className="mt-3 bg-red-100 dark:bg-red-700 hover:bg-red-200 dark:hover:bg-red-600 text-red-800 dark:text-white font-semibold py-2 px-4 rounded transition-colors"
+        >
+          Try Again
+        </button>
+      </div>
+    </div>
+  )}
+
+  {!isLoading && !error && (
+    <>
+      <div className='py-6 md:py-8'>
+        <div className="flex flex-col sm:flex-row justify-between items-center mb-4 md:mb-6 px-2 sm:px-0">
+          <h1 className="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2 sm:mb-0 flex items-center">
+            {searchTerm 
+              ? (
+                <>
+                  <span className="text-blue-600 dark:text-blue-400 mr-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
-                    <p className="text-gray-600 mb-3">No movies found</p>
-                    {searchTerm && (
-                      <button 
-                        onClick={clearSearch} 
-                        className="bg-blue-100 hover:bg-blue-200 text-blue-800 font-semibold py-2 px-4 rounded transition-colors"
-                      >
-                        Clear Search
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-              
-              {isSearchMode && movies.length > 0 && loadedPages.size < totalPages ? (
-                <div className="flex justify-center mt-6">
-                  <button
-                    onClick={loadMoreResults}
-                    className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg shadow transition-colors flex items-center space-x-2"
-                    disabled={isLoadingMore}
+                  </span>
+                  Results for "{searchTerm}"
+                  <button 
+                    onClick={handleBackNavigation} 
+                    className="ml-3 text-sm bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 py-1 px-3 rounded-full flex items-center transition-colors"
                   >
-                    {isLoadingMore ? (
-                      <>
-                        <div className="w-5 h-5 border-t-2 border-b-2 border-white rounded-full animate-spin"></div>
-                        <span>Loading more...</span>
-                      </>
-                    ) : (
-                      <>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                        </svg>
-                        <span>Load More Results</span>
-                      </>
-                    )}
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                    Back
                   </button>
-                </div>
-              ) : (
-                movies.length > 0 && (
-                  <div className="px-2 sm:px-0 mt-6">
-                    <Pagination 
-                      page={page}
-                      totalPages={totalPages}
-                      onPageChange={handlePageChange}
-                      itemsPerPage={movies.length}
-                    />
-                  </div>
-                )
+                </>
+              ) 
+              : (
+                <h1 className="mr-2 text-gray-800 dark:text-white">
+                  Popular Movies
+                </h1>
               )}
-              
-              {isSearchMode && loadedPages.size > 1 && (
-                <div className="text-center text-sm text-gray-500 mt-4">
-                  {loadedPages.size} of {totalPages} pages loaded ({movies.length} movies)
-                </div>
+          </h1>
+          <p className="text-sm md:text-base text-gray-600 dark:text-gray-400">
+            {isSearchMode && totalPages > 1 
+              ? <span className="flex items-center"><span className="inline-block w-2 h-2 rounded-full bg-blue-500 mr-2"></span>{movies.length} results (Page {page} of {totalPages})</span>
+              : page > totalPages 
+                ? <span className="text-red-600 dark:text-red-400">Page {page} exceeds maximum of {totalPages}</span> 
+                : <span className="flex items-center"><span className="inline-block w-2 h-2 rounded-full bg-green-500 mr-2"></span>Page {page} of {totalPages}</span>
+            }
+          </p>
+        </div>
+
+        <div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6 px-2 sm:px-0'>
+          {movies.length > 0 ? (
+            movies.map((movie) => (
+              <ListItem 
+                key={movie.id}
+                posterPath={movie.poster_path}
+                id={movie.id}
+                title={movie.title || 'Untitled'}
+                rating={movie.vote_average || 0}
+                releaseDate={movie.release_date}
+              />
+            ))
+          ) : (
+            <div className="col-span-full text-center py-12 md:py-16">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-gray-400 dark:text-gray-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M12 14a7 7 0 110-14 7 7 0 010 14z" />
+              </svg>
+              <p className="text-gray-600 dark:text-gray-400 mb-3">No movies found</p>
+              {searchTerm && (
+                <button 
+                  onClick={clearSearch} 
+                  className="bg-blue-100 dark:bg-blue-800 hover:bg-blue-200 dark:hover:bg-blue-700 text-blue-800 dark:text-white font-semibold py-2 px-4 rounded transition-colors"
+                >
+                  Clear Search
+                </button>
               )}
             </div>
-          </>
+          )}
+        </div>
+
+        {isSearchMode && movies.length > 0 && loadedPages.size < totalPages ? (
+          <div className="flex justify-center mt-6">
+            <button
+              onClick={loadMoreResults}
+              className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg shadow transition-colors flex items-center space-x-2"
+              disabled={isLoadingMore}
+            >
+              {isLoadingMore ? (
+                <>
+                  <div className="w-5 h-5 border-t-2 border-b-2 border-white rounded-full animate-spin"></div>
+                  <span>Loading more...</span>
+                </>
+              ) : (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                  </svg>
+                  <span>Load More Results</span>
+                </>
+              )}
+            </button>
+          </div>
+        ) : (
+          movies.length > 0 && (
+            <div className="px-2 sm:px-0 mt-6">
+              <Pagination 
+                page={page}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                itemsPerPage={movies.length}
+              />
+            </div>
+          )
         )}
-      </Container>
+
+        {isSearchMode && loadedPages.size > 1 && (
+          <div className="text-center text-sm text-gray-500 dark:text-gray-400 mt-4">
+            {loadedPages.size} of {totalPages} pages loaded ({movies.length} movies)
+          </div>
+        )}
+      </div>
     </>
+  )}
+</Container>
+
+    </div>
   )
 }
 

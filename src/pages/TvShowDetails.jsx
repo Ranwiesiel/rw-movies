@@ -4,7 +4,7 @@ import SEO from '../utils/SEO';
 import Container from '../components/Container';
 import SeasonEpisodes from '../components/SeasonEpisodes';
 import BackToTop from '../components/BackToTop';
-import { BASE_API, TV_DETAILS, BASE_IMG_URL, getHeaders } from '../utils/Endpoint';
+import { TV_DETAILS, BASE_IMG_URL, getHeaders } from '../utils/Endpoint';
 
 const TvShowDetails = () => {
   const { id } = useParams();
@@ -191,7 +191,7 @@ const TvShowDetails = () => {
   };
 
   return (
-    <>
+    <div className='bg-white dark:bg-bg dark:text-white'>
       <SEO
         title={tvShow.name}
         description={generateDescription()}
@@ -315,11 +315,11 @@ const TvShowDetails = () => {
         <div className="py-8">
           {/* Cast information */}
           {tvShow.credits && tvShow.credits.cast && tvShow.credits.cast.length > 0 && (
-            <div className="mb-8">
+            <div className="mb-8 ">
               <h2 className="text-2xl font-bold mb-4">Top Cast</h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                 {tvShow.credits.cast.slice(0, 6).map(person => (
-                  <div key={person.id} className="bg-white rounded-lg shadow-md overflow-hidden">
+                  <div key={person.id} className="bg-gray-200 dark:bg-card rounded-lg shadow-md overflow-hidden">
                     {person.profile_path ? (
                       <img 
                         src={`${BASE_IMG_URL}${person.profile_path}`} 
@@ -332,8 +332,8 @@ const TvShowDetails = () => {
                       </div>
                     )}
                     <div className="p-3">
-                      <h3 className="font-semibold text-gray-800">{person.name}</h3>
-                      <p className="text-sm text-gray-600">{person.character}</p>
+                      <h3 className="font-semibold text-gray-800 dark:text-white">{person.name}</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-100">{person.character}</p>
                     </div>
                   </div>
                 ))}
@@ -424,7 +424,7 @@ const TvShowDetails = () => {
           </div>
         </div>        
       </Container>
-    </>
+    </div>
   );
 };
 
