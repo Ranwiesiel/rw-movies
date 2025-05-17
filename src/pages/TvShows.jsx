@@ -413,7 +413,7 @@ const TvShows = () => {
   };
 
   return (
-    <div className="bg-white text-black dark:bg-black dark:text-white">
+    <div className="bg-white text-black dark:bg-bg dark:text-white">
       <SEO
         title="Discover TV Shows"
         description="Find popular series, anime, and TV shows from around the world. Explore trending shows or search for your favorites."
