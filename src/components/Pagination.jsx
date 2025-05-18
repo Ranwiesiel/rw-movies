@@ -135,8 +135,8 @@ const Pagination = memo(({
           className={`w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-md transition-all duration-200
                       focus:outline-none focus:ring-2 focus:ring-offset-1
                       ${page === i 
-                        ? 'bg-blue-600 text-white border border-blue-600 font-medium shadow-md hover:bg-blue-700 focus:ring-blue-400' 
-                        : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-blue-300 hover:text-blue-600 focus:ring-blue-400'}`}
+                        ? 'bg-bluee text-white font-medium shadow-md hover:bg-blueh focus:ring-bluee' 
+                        : 'bg-white dark:bg-bg border border-gray-300 dark:border-card text-gray-700 dark:text-white hover:bg-gray-50 dark:hover:border-blueh hover:border-blueh hover:text-blueh dark:hover:text-blueh focus:ring-bluee'}`}
           aria-label={`Go to page ${i}`}
           aria-current={page === i ? "page" : undefined}
           disabled={isAnimating}
@@ -161,8 +161,8 @@ const Pagination = memo(({
         <button 
           key={totalPages}
           onClick={() => goToPage(totalPages)}
-          className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-md bg-white border border-gray-300 
-                     text-gray-700 hover:bg-gray-50 hover:border-blue-300 hover:text-blue-600 
+          className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-md bg-white dark:bg-bg border border-gray-300 dark:border-card
+                     text-gray-700 dark:text-white hover:bg-gray-50 hover:border-blueh hover:text-blueh 
                      transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-1"
           aria-label="Go to last page"
           disabled={isAnimating}
@@ -257,7 +257,7 @@ const Pagination = memo(({
         />
         <button 
           type="submit" 
-          className="bg-blue-500 hover:bg-blue-600 text-white px-2 sm:px-3 py-1 rounded-md transition-all duration-200 
+          className="bg-bluee hover:bg-blueh text-white px-2 sm:px-3 py-1 rounded-md transition-all duration-200 
             flex items-center shadow-sm hover:shadow focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-1"
           title="Go to specified page"
           disabled={!goToPageInput || isAnimating}

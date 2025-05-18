@@ -455,14 +455,14 @@ const Movie = () => {
                   onInput={handleInputChange}
                   placeholder="Search for a movie..." 
                   value={keyword}
-                  className="shadow-lg flex-grow mb-2 sm:mb-0"
+                  className="shadow-lg flex-grow mb-2 sm:mb-0 text-bg"
                   ref={searchInputRef}
                   onKeyPress={handleKeyPress}
                   icon={searchIcon}
                 />
                 <button 
                   onClick={executeSearch}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg shadow-lg transition-all duration-200 flex items-center justify-center"
+                  className="bg-bluee hover:bg-blueh text-white px-6 py-2.5 rounded-lg shadow-lg transition-all duration-200 flex items-center justify-center"
                 >
                   Search
                 </button>
@@ -485,7 +485,7 @@ const Movie = () => {
       <Container>
   {isLoading && (
     <div className='py-8 md:py-16 text-center'>
-      <div className="inline-block animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500 mb-4"></div>
+      <div className="inline-block animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-bluee mb-4"></div>
       <p className="text-gray-600 dark:text-gray-300">
         {isSearchMode 
           ? `Searching for "${searchTerm}"...` 
@@ -517,7 +517,7 @@ const Movie = () => {
             {searchTerm 
               ? (
                 <>
-                  <span className="text-blue-600 dark:text-blue-400 mr-2">
+                  <span className="text-bluee mr-2">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
@@ -542,7 +542,7 @@ const Movie = () => {
           </h1>
           <p className="text-sm md:text-base text-gray-600 dark:text-gray-400">
             {isSearchMode && totalPages > 1 
-              ? <span className="flex items-center"><span className="inline-block w-2 h-2 rounded-full bg-blue-500 mr-2"></span>{movies.length} results (Page {page} of {totalPages})</span>
+              ? <span className="flex items-center"><span className="inline-block w-2 h-2 rounded-full bg-bluee mr-2"></span>{movies.length} results (Page {page} of {totalPages})</span>
               : page > totalPages 
                 ? <span className="text-red-600 dark:text-red-400">Page {page} exceeds maximum of {totalPages}</span> 
                 : <span className="flex items-center"><span className="inline-block w-2 h-2 rounded-full bg-green-500 mr-2"></span>Page {page} of {totalPages}</span>
@@ -571,7 +571,7 @@ const Movie = () => {
               {searchTerm && (
                 <button 
                   onClick={clearSearch} 
-                  className="bg-blue-100 dark:bg-blue-800 hover:bg-blue-200 dark:hover:bg-blue-700 text-blue-800 dark:text-white font-semibold py-2 px-4 rounded transition-colors"
+                  className="bg-blue-100 dark:bg-bluee hover:bg-blue-200 dark:hover:bg-blueh text-blue-800 dark:text-white font-semibold py-2 px-4 rounded transition-colors"
                 >
                   Clear Search
                 </button>
@@ -584,7 +584,7 @@ const Movie = () => {
           <div className="flex justify-center mt-6">
             <button
               onClick={loadMoreResults}
-              className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg shadow transition-colors flex items-center space-x-2"
+              className="bg-bluee hover:bg-blueh text-white px-6 py-3 rounded-lg shadow transition-colors flex items-center space-x-2"
               disabled={isLoadingMore}
             >
               {isLoadingMore ? (

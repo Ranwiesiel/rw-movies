@@ -291,7 +291,7 @@ const ListItem = memo((
             ></div>
 
             {/* Overlay efek saat hover */}
-            <div className="absolute inset-0 dark:bg-white/10 bg-black/30 group-hover:bg-black/50 transition-all duration-500 z-10"></div>
+            <div className="absolute inset-0  bg-white/10 group-hover:bg-black/50 transition-all duration-500 z-10"></div>
 
             {/* Spinner saat loading */}
             {imageLoading && (
@@ -324,24 +324,18 @@ const ListItem = memo((
                             <span>{formattedRating}</span>
                         </div>
                     )}
-                    <div className="flex flex-row gap-2">
-                        <span className={`text-xs px-2 py-1 rounded-full uppercase font-medium ${
-                            type === 'tv' ? 'bg-indigo-600/80 text-white' : 'bg-blue-600/80 text-white'
-                        }`}>
-                            {type}
-                        </span>
-                        {props.releaseDate && (
+                    {props.releaseDate && (
                             <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-medium">
                                 {props.releaseDate.split('-')[0]}
                             </span>
                         )}
-                    </div>
+                    
                 </div>
 
                 {/* Bottom section */}
                 <div className="flex flex-col items-center justify-center gap-4">
                     {isHovered && (
-                        <button className="bg-blue-600/90 text-white px-4 py-2 rounded-full flex items-center space-x-2 transform transition-transform duration-300 hover:scale-110 shadow-lg">
+                        <button className="bg-bluee/90 text-white md:px-4 px-2 md:py-2 py-1 rounded-full flex items-center space-x-2 transform transition-transform duration-300 hover:scale-110 shadow-lg">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -349,7 +343,7 @@ const ListItem = memo((
                             <span className="text-sm font-medium">Watch Now</span>
                         </button>
                     )}
-                    <h1 className="text-base font-semibold line-clamp-2 text-center group-hover:text-blue-400 transition-colors">
+                    <h1 className="text-base font-semibold line-clamp-2 text-center group-hover:text-bluee transition-colors">
                         {props.title}
                     </h1>
                 </div>

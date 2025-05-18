@@ -262,7 +262,7 @@ const TvShowDetails = () => {
                       ? 'bg-gray-700 text-gray-300' 
                       : tvShow.status === 'Returning Series' 
                         ? 'bg-green-700 text-green-100'
-                        : 'bg-blue-700 text-blue-100'
+                        : 'bg-bluee text-blue-100'
                   }`}>
                     {tvShow.status}
                   </span>

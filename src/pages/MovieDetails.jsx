@@ -214,7 +214,7 @@ const MovieDetails = () => {
           <p>Movie not found</p>
           <button 
             onClick={() => navigate('/')}
-            className="mt-4 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
+            className="mt-4 bg-bluee hover:bg-blueh text-white px-4 py-2 rounded"
           >
             Back to Movies
           </button>
@@ -456,7 +456,7 @@ const MovieDetails = () => {
                   onClick={() => switchSource(source)}
                   className={`px-4 py-2 rounded-lg ${
                     embedSource === source
-                      ? 'bg-blue-600 text-white'
+                      ? 'bg-bluee text-white'
                       : 'bg-gray-300 text-gray-800 hover:bg-blue-300'
                   }`}
                 >

@@ -19,6 +19,8 @@ export default {
         'custom-black': '#09090b',
         'custom-white': '#38c172',
         'custom-secondary': '#18181b',
+        'bluee':'#4c91ff',
+        'blueh':'#3A59D1',
       }
       
     },

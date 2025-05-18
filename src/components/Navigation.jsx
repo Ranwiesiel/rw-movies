@@ -101,7 +101,7 @@ const Navigation = memo(() => {
           <a
             href="/"
             onClick={goHome}
-            className="text-xl font-bold text-blue-600 hover:text-blue-800 transition-colors flex items-center group"
+            className="text-xl font-bold text-bluee hover:text-blueh transition-colors flex items-center group"
             title="Home"
             aria-label="RanwUse Homepage"
           >
@@ -130,8 +130,8 @@ const Navigation = memo(() => {
               </svg>
             </div>
             <span className="relative">
-              RanwUse
-              <span className="absolute bottom-[-4px] left-0 w-0 group-hover:w-full h-0.5 bg-blue-500 transition-all duration-300"></span>
+              RW Movies
+              <span className="absolute bottom-[-4px] left-0 w-0 group-hover:w-full h-0.5 bg-bluee transition-all duration-300"></span>
             </span>
           </a>
           {/* nih bagian buat night mode nya tar hehe*/}
@@ -181,7 +181,7 @@ const Navigation = memo(() => {
 
           {/* Mobile menu button */}
           <button
-            className="md:hidden flex items-center focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 rounded-md p-1"
+            className="md:hidden flex items-center focus:outline-none focus:ring-2 focus:ring-bluee focus:ring-offset-2 rounded-md p-1"
             onClick={toggleMenu}
             aria-label="Toggle menu"
             aria-expanded={isMenuOpen ? "true" : "false"}
@@ -210,8 +210,8 @@ const Navigation = memo(() => {
               onClick={goHome}
               className={`font-medium transition-all duration-200 relative group py-1 ${
                 isMoviePage
-                  ? "text-blue-600"
-                  : "text-gray-700 hover:text-blue-500"
+                  ? "text-bluee"
+                  : "text-gray-700 hover:text-blueeh"
               }`}
               aria-current={isMoviePage ? "page" : undefined}
             >
@@ -219,8 +219,8 @@ const Navigation = memo(() => {
               <span
                 className={`absolute inset-x-0 bottom-0 h-0.5 transform transition-all duration-300 ${
                   isMoviePage
-                    ? "bg-blue-500 w-full"
-                    : "bg-blue-300 w-0 group-hover:w-full"
+                    ? "bg-bluee w-full"
+                    : "bg-bluee w-0 group-hover:w-full"
                 }`}
               ></span>
             </a>
@@ -228,18 +228,18 @@ const Navigation = memo(() => {
               to="/tv"
               className={`font-medium transition-all duration-200 relative group py-1 ${
                 isTvShowPage
-                  ? "text-blue-600"
-                  : "text-gray-700 hover:text-blue-500"
+                  ? "text-bluee"
+                  : "text-gray-700 hover:text-blueh"
               }`}
               onClick={closeMenu}
               aria-current={isTvShowPage ? "page" : undefined}
             >
-              <span className="relative z-10">TV Shows</span>
+              <span className="relative z-10 dark:text-white">TV Shows</span>
               <span
                 className={`absolute inset-x-0 bottom-0 h-0.5 transform transition-all duration-300 ${
                   isTvShowPage
-                    ? "bg-blue-500 w-full"
-                    : "bg-blue-300 w-0 group-hover:w-full"
+                    ? "bg-bluee w-full"
+                    : "bg-bluee w-0 group-hover:w-full"
                 }`}
               ></span>
             </Link>
@@ -249,7 +249,7 @@ const Navigation = memo(() => {
               href="https://github.com/Ranwiesiel/rw-movies "
               target="_blank"
               rel="noopener noreferrer"
-              className="text-gray-500 hover:text-gray-900 p-1"
+              className="text-gray-500 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white p-1"
               title="View on GitHub"
             >
               <span className="sr-only">View on GitHub</span>
@@ -267,7 +267,7 @@ const Navigation = memo(() => {
 
         {/* Mobile navigation menu - Fixed for better visibility and height */}
         <div
-          className={`md:hidden fixed inset-x-0 top-[57px] bg-white/95 backdrop-blur-md z-40 overflow-y-auto transition-all duration-300 ease-in-out ${
+          className={`md:hidden fixed inset-x-0 top-[57px] bg-white/95 dark:bg-gray-800/95 backdrop-blur-md z-40 overflow-y-auto transition-all duration-300 ease-in-out ${
             isMenuOpen
               ? "opacity-100 translate-y-0 visible"
               : "opacity-0 -translate-y-10 invisible pointer-events-none"
@@ -291,8 +291,8 @@ const Navigation = memo(() => {
                 }}
                 className={`font-medium py-4 px-4 rounded-lg transition-all duration-200 ${
                   isMoviePage
-                    ? "bg-blue-50 text-blue-600"
-                    : "text-gray-800 hover:bg-gray-50"
+                    ? "bg-blue-50 dark:bg-card text-bluee"
+                    : "text-gray-800 dark:text-white hover:bg-gray-50 dark:hover:bg-card"
                 }`}
               >
                 Movies
@@ -301,8 +301,8 @@ const Navigation = memo(() => {
                 to="/tv"
                 className={`font-medium py-4 px-4 rounded-lg transition-all duration-200 ${
                   isTvShowPage
-                    ? "bg-blue-50 text-blue-600"
-                    : "text-gray-800 hover:bg-gray-50"
+                   ? "bg-blue-50 dark:bg-card text-bluee"
+                    : "text-gray-800 dark:text-white hover:bg-gray-50 dark:hover:bg-card"
                 }`}
                 onClick={closeMenu}
               >
@@ -313,7 +313,7 @@ const Navigation = memo(() => {
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={closeMenu}
-                className="flex items-center font-medium py-4 px-4 rounded-lg text-gray-800 hover:bg-gray-50 transition-all duration-200"
+                className="flex items-center font-medium py-4 px-4 rounded-lg text-gray-800 dark:text-white hover:bg-gray-50 dark:hover:bg-card transition-all duration-200"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"

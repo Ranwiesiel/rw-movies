@@ -5,6 +5,9 @@
 @tailwind utilities;
 
 
+body {
+  font-family: 'Montserrat', sans-serif;
+}
 
 .montserrat-regular {
   font-family: "Montserrat", sans-serif;

@@ -253,7 +253,7 @@ const SeasonEpisodes = ({ tvId, seasons }) => {
                   setTimeout(() => startWatchingEpisode(), 100);
                 }
               }}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
+              className="bg-bluee hover:bg-blueh text-white px-3 py-1 rounded text-sm font-medium transition-colors"
             >
               Watch
             </button>
@@ -364,7 +364,7 @@ const SeasonEpisodes = ({ tvId, seasons }) => {
               onClick={() => setSelectedSeason(season.season_number)}
               className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-300 
                 ${selectedSeason === season.season_number 
-                  ? 'bg-blue-600 text-white shadow-md' 
+                  ? 'bg-bluee text-white shadow-md' 
                   : 'bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600'}`}
             >
               Season {season.season_number}

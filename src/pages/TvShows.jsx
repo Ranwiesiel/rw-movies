@@ -445,14 +445,14 @@ const TvShows = () => {
                   onInput={handleInputChange}
                   placeholder="Search for a TV show..."
                   value={keyword}
-                  className="shadow-lg flex-grow mb-2 sm:mb-0"
+                  className="shadow-lg flex-grow mb-2 sm:mb-0 text-bg "
                   ref={searchInputRef}
                   onKeyPress={handleKeyPress}
                   icon={searchIcon}
                 />
                 <button
                   onClick={executeSearch}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg shadow-lg transition-all duration-200 flex items-center justify-center"
+                  className="bg-bluee hover:bg-blueh text-white px-6 py-2.5 rounded-lg shadow-lg transition-all duration-200 flex items-center justify-center"
                 >
                   Search
                 </button>
@@ -475,7 +475,7 @@ const TvShows = () => {
       <Container>
         {isLoading && (
           <div className="py-8 md:py-16 text-center">
-            <div className="inline-block animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500 mb-4"></div>
+            <div className="inline-block animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-bluee mb-4"></div>
             <p className="text-gray-600 dark:text-gray-300">
               {isSearchMode
                 ? `Searching for "${searchTerm}"...`
@@ -510,7 +510,7 @@ const TvShows = () => {
                 <h2 className="text-xl md:text-2xl font-bold text-gray-800 mb-2 sm:mb-0 flex items-center">
                   {searchTerm ? (
                     <>
-                      <span className="text-blue-600 dark:text-blue-400 mr-2">
+                      <span className="text-blueh dark:text-bluee mr-2">
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
                           className="h-5 w-5"
@@ -557,7 +557,7 @@ const TvShows = () => {
                 <p className="text-sm md:text-base text-gray-600">
                   {isSearchMode && totalPages > 1 ? (
                     <span className="flex items-center">
-                      <span className="inline-block w-2 h-2 rounded-full bg-blue-500 mr-2"></span>
+                      <span className="inline-block w-2 h-2 rounded-full bg-bluee mr-2"></span>
                       {tvShows.length} results (Page {page} of {totalPages})
                     </span>
                   ) : page > totalPages ? (
@@ -610,7 +610,7 @@ const TvShows = () => {
                           setSearchTerm("");
                           setPage(1);
                         }}
-                        className="bg-blue-100 hover:bg-blue-200 text-blue-800 font-semibold py-2 px-4 rounded transition-colors"
+                        className="bg-blue-100 hover:bg-blue-200 text-blueh font-semibold py-2 px-4 rounded transition-colors"
                       >
                         Clear Search
                       </button>
@@ -625,7 +625,7 @@ const TvShows = () => {
                 <div className="flex justify-center mt-6">
                   <button
                     onClick={loadMoreResults}
-                    className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg shadow transition-colors flex items-center space-x-2"
+                    className="bg-bluee hover:bg-blueh text-white px-6 py-3 rounded-lg shadow transition-colors flex items-center space-x-2"
                     disabled={isLoadingMore}
                   >
                     {isLoadingMore ? (
