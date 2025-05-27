@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import SEO from '../utils/SEO';
 import Container from '../components/Container';
 import BackToTop from '../components/BackToTop';
-import { BASE_API, MOVIE_DETAILS, BASE_IMG_URL, getHeaders } from '../utils/Endpoint';
+import { MOVIE_DETAILS, BASE_IMG_URL, getHeaders } from '../utils/Endpoint';
+import { safeGetItem, safeSetItem, safeRemoveItem } from '../utils/StorageHandler';
 
 const MovieDetails = () => {
   const { id } = useParams();
@@ -11,47 +12,10 @@ const MovieDetails = () => {
   const location = useLocation();
   const [movie, setMovie] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
-  
-  // Player state
+  const [error, setError] = useState(null);  // Player state
   const [isPlayerLoading, setIsPlayerLoading] = useState(false);
   const [playerError, setPlayerError] = useState(null);
-  const [embedSource, setEmbedSource] = useState('default'); // 'default', 'alternative', 'fallback'
-  const [showPlayer, setShowPlayer] = useState(true);
-  const playerRef = useRef(null);
-
-  // Function to restart player with the current source
-  const restartPlayer = () => {
-    setIsPlayerLoading(true);
-    setPlayerError(null);
-    setShowPlayer(false);
-    setTimeout(() => {
-      setShowPlayer(true);
-    }, 50);
-  };
-
-  // Function to switch to a specific source
-  const switchSource = (source) => {
-    if (embedSource !== source) {
-      setEmbedSource(source);
-      setIsPlayerLoading(true);
-      setPlayerError(null);
-      restartPlayer();
-    }
-  };
-
-  // Get source name for display
-  const getSourceName = (source) => {
-    switch(source) {
-      case 'alternative':
-        return 'Source 2';
-      case 'fallback':
-        return 'Source 3';
-      case 'default':
-      default:
-        return 'Source 1';
-    }
-  };
+  const [currentSource, setCurrentSource] = useState('pstream'); // 'pstream' or 'embedsu'
 
   // Function to handle player load events
   const handlePlayerLoad = () => {
@@ -62,32 +26,15 @@ const MovieDetails = () => {
   // Function to handle player errors
   const handlePlayerError = () => {
     setIsPlayerLoading(false);
-    
-    if (embedSource === 'default') {
-      // Try alternative source
-      setPlayerError("Primary player failed. Trying alternative source...");
-      setEmbedSource('alternative');
-      restartPlayer();
-    } else if (embedSource === 'alternative') {
-      // Try fallback source
-      setPlayerError("Alternative player failed. Trying fallback source...");
-      setEmbedSource('fallback');
-      restartPlayer();
-    } else {
-      setPlayerError("Failed to load video player. Please try again later or check if this movie is available.");
-    }
+    setPlayerError("Failed to load video player. Please try again later or check if this movie is available.");
   };
-  
+
   // Generate the embed URL based on the current source
   const getEmbedUrl = () => {
-    switch(embedSource) {
-      case 'alternative':
-        return `https://vidsrc.xyz/embed/movie?tmdb=${id}`;
-      case 'fallback':
-        return `https://www.2embed.cc/embed/${id}`;
-      case 'default':
-      default:
-        return `https://embed.su/embed/movie/${id}`;
+    if (currentSource === 'pstream') {
+      return `https://iframe.pstream.org/embed/tmdb-movie-${id}?language=id`;
+    } else {
+      return `https://embed.su/embed/movie/${id}`;
     }
   };
 
@@ -116,23 +63,24 @@ const MovieDetails = () => {
     const fetchMovieDetails = async () => {
       setIsLoading(true);
       setError(null);
-      
-      const cachedKey = `cachedMovieDetails_${id}`;
-      const cachedData = localStorage.getItem(cachedKey);
-      const cachedTimestamp = localStorage.getItem(`${cachedKey}_timestamp`);
+        const cachedKey = `cachedMovieDetails_${id}`;
+      const cachedData = safeGetItem(cachedKey);
+      const cachedTimestamp = safeGetItem(`${cachedKey}_timestamp`);
       const cacheExpiry = 30 * 60 * 1000; // 30 minutes
       
       if (cachedData && cachedTimestamp) {
         const currentTime = new Date().getTime();
         if (currentTime - parseInt(cachedTimestamp) < cacheExpiry) {
           try {
-            const parsedData = JSON.parse(cachedData);
             console.log("Using cached movie details");
-            setMovie(parsedData);
+            setMovie(cachedData);
             setIsLoading(false);
             return;
           } catch (err) {
-            console.error("Error parsing cached data", err);
+            console.error("Error using cached data", err);
+            // Remove corrupted cache
+            safeRemoveItem(cachedKey);
+            safeRemoveItem(`${cachedKey}_timestamp`);
           }
         }
       }
@@ -146,12 +94,11 @@ const MovieDetails = () => {
         
         const data = await response.json();
         console.log("Movie details:", data);
+          setMovie(data);
         
-        setMovie(data);
-        
-        // Cache the data
-        localStorage.setItem(cachedKey, JSON.stringify(data));
-        localStorage.setItem(`${cachedKey}_timestamp`, new Date().getTime().toString());
+        // Cache the data using StorageHandler
+        safeSetItem(cachedKey, data);
+        safeSetItem(`${cachedKey}_timestamp`, new Date().getTime());
         
         // Preload backdrop image
         if (data.backdrop_path) {
@@ -170,11 +117,10 @@ const MovieDetails = () => {
   }, [id, navigate]);
   
   if (isLoading) {
-    return (
-      <Container>
+    return (      <Container>
         <div className='py-16 text-center'>
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mb-4"></div>
-          <p>Loading movie details...</p>
+          <p className="text-gray-700 dark:text-gray-300">Loading movie details...</p>
         </div>
       </Container>
     );
@@ -206,12 +152,11 @@ const MovieDetails = () => {
       </Container>
     );
   }
-  
-  if (!movie) {
+    if (!movie) {
     return (
       <Container className='dark'>
         <div className='py-8 text-center'>
-          <p>Movie not found</p>
+          <p className="text-gray-800 dark:text-gray-200">Movie not found</p>
           <button 
             onClick={() => navigate('/')}
             className="mt-4 bg-bluee hover:bg-blueh text-white px-4 py-2 rounded"
@@ -422,47 +367,60 @@ const MovieDetails = () => {
         {/* Movie Player */}
         <div className="py-8">
           <h2 className="text-gray-800 dark:text-gray-200 text-2xl font-bold mb-4">Watch Movie</h2>
-          <div className="dark:bg-card bg-gray-200 rounded-lg shadow-md p-4">
-            <div className="aspect-video mb-4 bg-gray-900 rounded overflow-hidden">
-              {showPlayer && (
-                <iframe
-                  src={getEmbedUrl()}
-                  width="100%"
-                  height="100%"
-                  frameBorder="0"
-                  allowFullScreen
-                  className="w-full h-full"
-                  title={`${movie.title} Player`}
-                  onLoad={handlePlayerLoad}
-                  onError={handlePlayerError}
-                ></iframe>
-              )}
+          <div className="dark:bg-card bg-gray-200 rounded-lg shadow-md p-4">            <div className="aspect-video mb-4 bg-gray-900 rounded overflow-hidden">
+              <iframe
+                src={getEmbedUrl()}
+                width="100%"
+                height="100%"
+                frameBorder="0"
+                allowFullScreen
+                className="w-full h-full"
+                title={`${movie.title} Player`}
+                onLoad={handlePlayerLoad}
+                onError={handlePlayerError}
+              ></iframe>
             </div>
-            {isPlayerLoading && (
-              <div className="text-center">
+            {isPlayerLoading && (              <div className="text-center">
                 <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mb-4"></div>
-                <p>Loading player...</p>
-              </div>
-            )}
-            {playerError && (
-              <div className="text-center text-red-500">
+                <p className="text-gray-700 dark:text-gray-300">Loading player...</p>
+              </div>)}            {playerError && (
+              <div className="text-center text-red-500 dark:text-red-400">
                 <p>{playerError}</p>
               </div>
             )}
-            <div className="flex justify-center gap-4 mb-4">
-              {['default', 'alternative', 'fallback'].map(source => (
-                <button
-                  key={source}
-                  onClick={() => switchSource(source)}
-                  className={`px-4 py-2 rounded-lg ${
-                    embedSource === source
-                      ? 'bg-bluee text-white'
-                      : 'bg-gray-300 text-gray-800 hover:bg-blue-300'
-                  }`}
-                >
-                  {getSourceName(source)}
-                </button>
-              ))}
+
+            {/* Source switching buttons */}
+            <div className="flex justify-center gap-3 mb-4">
+              <button
+                className={`px-4 py-2 rounded-lg transition ${
+                  currentSource === 'pstream' 
+                    ? 'bg-bluee text-white' 
+                    : 'bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-white hover:bg-blue-300 dark:hover:bg-gray-500'
+                }`}
+                onClick={() => {
+                  if (currentSource !== 'pstream') {
+                    setCurrentSource('pstream');
+                    setIsPlayerLoading(true);
+                  }
+                }}
+              >
+                PStream
+              </button>
+              <button
+                className={`px-4 py-2 rounded-lg transition ${
+                  currentSource === 'embedsu' 
+                    ? 'bg-bluee text-white' 
+                    : 'bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-white hover:bg-blue-300 dark:hover:bg-gray-500'
+                }`}
+                onClick={() => {
+                  if (currentSource !== 'embedsu') {
+                    setCurrentSource('embedsu');
+                    setIsPlayerLoading(true);
+                  }
+                }}
+              >
+                Embed.su
+              </button>
             </div>
             <p className="dark:text-white text-custom-secondary text-sm">
               {"If the player does't load correctly, please try refreshing the page or check back later."}

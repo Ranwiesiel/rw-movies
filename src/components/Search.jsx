@@ -2,6 +2,7 @@ import { useContext, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { MovieContext } from "../contexts/MovieContext";
 import { SEARCH_MOVIES, getHeaders } from "../utils/Endpoint";
+import { safeGetItem, safeSetItem } from "../utils/StorageHandler";
 
 export default function Search() {
   const { dispatch } = useContext(MovieContext);
@@ -11,12 +12,11 @@ export default function Search() {
 
   const handleSearch = async () => {
     if (searchTerm.trim() === "") return;
-    
-    // Save current location pathname before navigating
+      // Save current location pathname before navigating
     const currentPath = location.pathname + location.search;
     // Don't save search pages as previous location
     if (!currentPath.includes('/search/') && !currentPath.includes(`/${searchTerm.trim()}`)) {
-      localStorage.setItem("previousLocation", currentPath);
+      safeSetItem("previousLocation", currentPath);
     }
     
     // Use the TV search route if we're in the TV section
@@ -28,15 +28,14 @@ export default function Search() {
     }
     
     dispatch({ type: "SET_LOADING", payload: true });
-    
-    // Check if we have this search cached in localStorage
-    const cachedResult = localStorage.getItem(`search-${searchTerm}`);
-    const cachedTimestamp = localStorage.getItem(`search-${searchTerm}-timestamp`);
+      // Check if we have this search cached using StorageHandler
+    const cachedResult = safeGetItem(`search-${searchTerm}`);
+    const cachedTimestamp = safeGetItem(`search-${searchTerm}-timestamp`);
     const cacheExpiry = 30 * 60 * 1000; // 30 minutes
     
     if (cachedResult && cachedTimestamp && 
         (Date.now() - parseInt(cachedTimestamp)) < cacheExpiry) {
-      dispatch({ type: "SEARCH_MOVIES", payload: JSON.parse(cachedResult) });
+      dispatch({ type: "SEARCH_MOVIES", payload: cachedResult });
       dispatch({ type: "SET_LOADING", payload: false });
       return;
     }
@@ -52,11 +51,10 @@ export default function Search() {
       }
       
       const data = await response.json();
-      
-      if (data.results && Array.isArray(data.results)) {
-        // Cache the search results
-        localStorage.setItem(`search-${searchTerm}`, JSON.stringify(data.results));
-        localStorage.setItem(`search-${searchTerm}-timestamp`, Date.now().toString());
+        if (data.results && Array.isArray(data.results)) {
+        // Cache the search results using StorageHandler
+        safeSetItem(`search-${searchTerm}`, data.results);
+        safeSetItem(`search-${searchTerm}-timestamp`, Date.now());
         dispatch({ type: "SEARCH_MOVIES", payload: data.results });
       } else {
         dispatch({ type: "SEARCH_MOVIES", payload: [] });

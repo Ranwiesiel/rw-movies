@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import { useSearchParams, useLocation, useNavigate } from "react-router-dom";
+import { useSearchParams, useNavigate, useLocation } from "react-router-dom";
 import SEO from "../utils/SEO";
 import Input from "../components/Input";
 import ListItem from "../components/ListItem";
@@ -554,7 +554,7 @@ const TvShows = () => {
                 </h1>
                   )}
                 </h2>
-                <p className="text-sm md:text-base text-gray-600">
+                <p className="text-sm md:text-base text-gray-600 dark:text-gray-300">
                   {isSearchMode && totalPages > 1 ? (
                     <span className="flex items-center">
                       <span className="inline-block w-2 h-2 rounded-full bg-bluee mr-2"></span>
@@ -602,7 +602,7 @@ const TvShows = () => {
                         d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M12 14a7 7 0 110-14 7 7 0 010 14z"
                       />
                     </svg>
-                    <p className="text-gray-600 mb-3">No TV shows found</p>
+                    <p className="text-gray-600 dark:text-gray-300 mb-3">No TV shows found</p>
                     {searchTerm && (
                       <button
                         onClick={() => {
@@ -668,7 +668,7 @@ const TvShows = () => {
               )}
 
               {isSearchMode && loadedPages.size > 1 && (
-                <div className="text-center text-sm text-gray-500 mt-4">
+                <div className="text-center text-sm text-gray-500 dark:text-gray-400 mt-4">
                   {loadedPages.size} of {totalPages} pages loaded (
                   {tvShows.length} shows)
                 </div>

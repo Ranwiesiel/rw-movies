@@ -1,24 +1,24 @@
 import PropTypes from "prop-types";
 import { createContext, useContext, useEffect, useState } from "react";
+import { safeGetItem, safeSetItem } from "../utils/StorageHandler";
 
 const ThemeContext = createContext();
 
 export const ThemeProvider = ({ children }) => {
   const [isDarkMode, setIsDarkMode] = useState(() => {
     return (
-      localStorage.getItem("theme") === "dark" ||
+      safeGetItem("theme") === "dark" ||
       (window.matchMedia("(prefers-color-scheme: dark)").matches &&
-        !localStorage.getItem("theme"))
+        !safeGetItem("theme"))
     );
   });
-
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add("dark");
-      localStorage.setItem("theme", "dark");
+      safeSetItem("theme", "dark");
     } else {
       document.documentElement.classList.remove("dark");
-      localStorage.setItem("theme", "light");
+      safeSetItem("theme", "light");
     }
   }, [isDarkMode]);
 

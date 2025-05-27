@@ -253,3 +253,183 @@ export const clearAllCache = (preserveUserData = true) => {
     return false;
   }
 };
+
+// Get detailed storage information
+export const getStorageInfo = () => {
+  try {
+    const info = {
+      localStorage: {
+        available: isStorageAvailable('localStorage'),
+        used: 0,
+        keys: [],
+        quota: null
+      },
+      sessionStorage: {
+        available: isStorageAvailable('sessionStorage'),
+        used: 0,
+        keys: [],
+        quota: null
+      }
+    };
+
+    // Get localStorage info
+    if (info.localStorage.available) {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        const value = localStorage.getItem(key);
+        info.localStorage.used += key.length + value.length;
+        info.localStorage.keys.push({
+          key,
+          size: key.length + value.length,
+          isMetadata: key.startsWith('__meta_')
+        });
+      }
+    }
+
+    // Get sessionStorage info
+    if (info.sessionStorage.available) {
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        const value = sessionStorage.getItem(key);
+        info.sessionStorage.used += key.length + value.length;
+        info.sessionStorage.keys.push({
+          key,
+          size: key.length + value.length
+        });
+      }
+    }
+
+    // Try to estimate quota (this is approximate)
+    try {
+      if (navigator.storage && navigator.storage.estimate) {
+        navigator.storage.estimate().then(estimate => {
+          info.localStorage.quota = estimate.quota;
+        });
+      }
+    } catch (e) {
+      // Quota estimation not available
+    }
+
+    return info;
+  } catch (error) {
+    console.error('Failed to get storage info:', error);
+    return null;
+  }
+};
+
+// Clean storage by category (useful for maintenance)
+export const cleanStorageByPattern = (pattern, maxAge = null) => {
+  let cleanedCount = 0;
+  let freedBytes = 0;
+
+  try {
+    const keysToRemove = [];
+    
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      
+      if (key && key.includes(pattern)) {
+        let shouldRemove = true;
+        
+        // Check age if maxAge is specified
+        if (maxAge) {
+          const timestampKey = `${key}_timestamp`;
+          const timestamp = safeGetItem(timestampKey);
+          if (timestamp) {
+            const age = Date.now() - timestamp;
+            shouldRemove = age > maxAge;
+          }
+        }
+        
+        if (shouldRemove) {
+          const value = localStorage.getItem(key);
+          freedBytes += key.length + (value ? value.length : 0);
+          keysToRemove.push(key);
+        }
+      }
+    }
+    
+    // Remove the keys
+    keysToRemove.forEach(key => {
+      safeRemoveItem(key);
+      cleanedCount++;
+    });
+    
+    return { cleanedCount, freedBytes };
+  } catch (error) {
+    console.error('Failed to clean storage by pattern:', error);
+    return { cleanedCount: 0, freedBytes: 0 };
+  }
+};
+
+// Backup and restore functions for critical data
+export const backupCriticalData = () => {
+  try {
+    const criticalKeys = ['user_settings', 'auth_token', 'theme'];
+    const backup = {};
+    
+    criticalKeys.forEach(key => {
+      const value = safeGetItem(key);
+      if (value !== null) {
+        backup[key] = value;
+      }
+    });
+    
+    return backup;
+  } catch (error) {
+    console.error('Failed to backup critical data:', error);
+    return {};
+  }
+};
+
+export const restoreCriticalData = (backup) => {
+  try {
+    let restoredCount = 0;
+    
+    Object.entries(backup).forEach(([key, value]) => {
+      if (safeSetItem(key, value)) {
+        restoredCount++;
+      }
+    });
+    
+    return restoredCount;
+  } catch (error) {
+    console.error('Failed to restore critical data:', error);
+    return 0;
+  }
+};
+
+// Check if storage is getting full and automatically clean if needed
+export const maintainStorage = (thresholdPercent = 80) => {
+  try {
+    const storageInfo = getStorageInfo();
+    if (!storageInfo || !storageInfo.localStorage.available) return false;
+    
+    // Rough estimate: localStorage usually has ~5-10MB limit
+    const estimatedQuota = 5 * 1024 * 1024; // 5MB in bytes
+    const usagePercent = (storageInfo.localStorage.used / estimatedQuota) * 100;
+    
+    if (usagePercent > thresholdPercent) {
+      console.log(`Storage usage at ${usagePercent.toFixed(1)}%, cleaning old data...`);
+      
+      // Clean old cached images first (they're usually the largest)
+      const imageCleanup = cleanStorageByPattern('image_', 7 * 24 * 60 * 60 * 1000); // 7 days
+      
+      // Clean old movie/tv data
+      const movieCleanup = cleanStorageByPattern('cachedMovieDetails_', 24 * 60 * 60 * 1000); // 1 day
+      const tvCleanup = cleanStorageByPattern('tvShow_', 24 * 60 * 60 * 1000); // 1 day
+      
+      const totalFreed = imageCleanup.freedBytes + movieCleanup.freedBytes + tvCleanup.freedBytes;
+      const totalCleaned = imageCleanup.cleanedCount + movieCleanup.cleanedCount + tvCleanup.cleanedCount;
+      
+      console.log(`Maintenance complete: Cleaned ${totalCleaned} items, freed ${Math.round(totalFreed / 1024)}KB`);
+      
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('Storage maintenance failed:', error);
+    return false;
+  }
+};

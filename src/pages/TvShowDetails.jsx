@@ -1,34 +1,16 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import SEO from '../utils/SEO';
 import Container from '../components/Container';
 import SeasonEpisodes from '../components/SeasonEpisodes';
 import BackToTop from '../components/BackToTop';
 import { TV_DETAILS, BASE_IMG_URL, getHeaders } from '../utils/Endpoint';
+import { safeSetItem, safeGetItem } from '../utils/StorageHandler';
 
-const TvShowDetails = () => {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const location = useLocation();
+const TvShowDetails = () => {  const { id } = useParams();
   const [tvShow, setTvShow] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  
-  // Enhanced back navigation function with more reliable behavior
-  const handleGoBack = () => {
-    // First, check if we have a valid history state from ListItem navigation
-    if (location.state && location.state.fromPath) {
-      navigate(location.state.fromPath);
-    } 
-    // If no state, check if we likely came from the TV section
-    else if (location.key) {
-      navigate('/tv');
-    }
-    // Last resort fallback
-    else {
-      navigate(-1);
-    }
-  };
 
   useEffect(() => {
     const fetchTvShowDetails = async () => {
@@ -36,20 +18,18 @@ const TvShowDetails = () => {
       
       setIsLoading(true);
       setError(null);
-      
-      try {
+        try {
         const cachedKey = `tvShowDetails_${id}`;
-        const cachedData = localStorage.getItem(cachedKey);
-        const cachedTimestamp = localStorage.getItem(`${cachedKey}_timestamp`);
+        const cachedData = safeGetItem(cachedKey);
+        const cachedTimestamp = safeGetItem(`${cachedKey}_timestamp`);
         const cacheExpiry = 60 * 60 * 1000; // 1 hour
         
         if (cachedData && cachedTimestamp) {
           const currentTime = new Date().getTime();
           if (currentTime - parseInt(cachedTimestamp) < cacheExpiry) {
             try {
-              const parsedData = JSON.parse(cachedData);
               console.log("Using cached TV show details");
-              setTvShow(parsedData);
+              setTvShow(cachedData);
               setIsLoading(false);
               return;
             } catch (err) {
@@ -67,12 +47,11 @@ const TvShowDetails = () => {
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
         
-        const data = await response.json();
-        setTvShow(data);
+        const data = await response.json();        setTvShow(data);
         
-        // Cache the details
-        localStorage.setItem(cachedKey, JSON.stringify(data));
-        localStorage.setItem(`${cachedKey}_timestamp`, new Date().getTime().toString());
+        // Cache the details using our safe storage utility
+        safeSetItem(cachedKey, data);
+        safeSetItem(`${cachedKey}_timestamp`, new Date().getTime());
         
         // Preload images for better UX
         if (data.backdrop_path) {
@@ -104,7 +83,7 @@ const TvShowDetails = () => {
         <Container>
           <div className="py-20 text-center">
             <div className="inline-block animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500 mb-4"></div>
-            <p className="text-gray-600">Loading TV show details...</p>
+            <p className="text-gray-600 dark:text-gray-300">Loading TV show details...</p>
           </div>
         </Container>
       </>
@@ -145,7 +124,7 @@ const TvShowDetails = () => {
         />
         <Container>
           <div className="py-20 text-center">
-            <p className="text-gray-600">TV show not found</p>
+            <p className="text-gray-600 dark:text-gray-300">TV show not found</p>
             <Link 
               to="/tv"
               className="block mt-3 text-sm text-blue-600 hover:underline"
@@ -225,7 +204,7 @@ const TvShowDetails = () => {
                 />
               ) : (
                 <div className="w-full h-96 bg-gray-200 rounded-lg flex items-center justify-center">
-                  <span className="text-gray-500">No poster available</span>
+                  <span className="text-gray-500 dark:text-gray-400">No poster available</span>
                 </div>
               )}              
             </div>
@@ -286,7 +265,7 @@ const TvShowDetails = () => {
               
               {tvShow.tagline && (
                 <div className="mb-3">
-                  <p className="text-gray-300 italic">"{tvShow.tagline}"</p>
+                  <p className="text-gray-300 italic">&ldquo;{tvShow.tagline}&rdquo;</p>
                 </div>
               )}
               
@@ -328,7 +307,7 @@ const TvShowDetails = () => {
                       />
                     ) : (
                       <div className="w-full h-48 bg-gray-200 flex items-center justify-center">
-                        <span className="text-gray-500">No image</span>
+                        <span className="text-gray-500 dark:text-gray-400">No image</span>
                       </div>
                     )}
                     <div className="p-3">

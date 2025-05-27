@@ -187,7 +187,7 @@ const Navigation = memo(() => {
             aria-expanded={isMenuOpen ? "true" : "false"}
           >
             <svg
-              className="w-6 h-6 text-gray-600"
+              className="w-6 h-6 text-gray-600 dark:text-gray-300"
               fill="none"
               strokeLinecap="round"
               strokeLinejoin="round"

@@ -1,5 +1,7 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import PropTypes from 'prop-types';
 import { TV_SEASON_EPISODES, BASE_IMG_URL, getHeaders } from '../utils/Endpoint';
+import { safeGetItem, safeSetItem, safeRemoveItem } from '../utils/StorageHandler';
 
 const SeasonEpisodes = ({ tvId, seasons }) => {
   const [seasonData, setSeasonData] = useState(null);
@@ -9,11 +11,8 @@ const SeasonEpisodes = ({ tvId, seasons }) => {
   const [activeEpisode, setActiveEpisode] = useState(null);
   const [showPlayer, setShowPlayer] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
-  const [retryDelay, setRetryDelay] = useState(2000);
-  const [isPlayerLoading, setIsPlayerLoading] = useState(false);
+  const [retryDelay, setRetryDelay] = useState(2000);  const [isPlayerLoading, setIsPlayerLoading] = useState(false);
   const [playerError, setPlayerError] = useState(null);
-  const [embedSource, setEmbedSource] = useState('default'); // 'default', 'alternative', 'fallback'
-  const playerRef = useRef(null);
 
   const fetchSeasonEpisodes = useCallback(async (skipCache = false) => {
     if (!tvId || !selectedSeason) return;
@@ -26,25 +25,26 @@ const SeasonEpisodes = ({ tvId, seasons }) => {
       setShowPlayer(false); // Reset player state when changing season
     }
 
-    try {
-      // Check for cached season data first (unless skipCache is true)
+    try {      // Check for cached season data first (unless skipCache is true)
       if (!skipCache) {
         const cacheKey = `tvShow_${tvId}_season_${selectedSeason}`;
-        const cachedData = localStorage.getItem(cacheKey);
-        const cachedTimestamp = localStorage.getItem(`${cacheKey}_timestamp`);
+        const cachedData = safeGetItem(cacheKey);
+        const cachedTimestamp = safeGetItem(`${cacheKey}_timestamp`);
         const cacheExpiry = 24 * 60 * 60 * 1000; // 24 hours
 
         if (cachedData && cachedTimestamp) {
           const currentTime = new Date().getTime();
           if (currentTime - parseInt(cachedTimestamp) < cacheExpiry) {
             try {
-              const parsedData = JSON.parse(cachedData);
               console.log("Using cached season data");
-              setSeasonData(parsedData);
+              setSeasonData(cachedData);
               setIsLoading(false);
               return;
             } catch (err) {
-              console.error("Error parsing cached season data", err);
+              console.error("Error using cached season data", err);
+              // Remove corrupted cache
+              safeRemoveItem(cacheKey);
+              safeRemoveItem(`${cacheKey}_timestamp`);
             }
           }
         }
@@ -72,14 +72,12 @@ const SeasonEpisodes = ({ tvId, seasons }) => {
 
       // Reset retry count on successful request
       setRetryCount(0);
-      setRetryDelay(2000);
+      setRetryDelay(2000);      setSeasonData(data);
 
-      setSeasonData(data);
-
-      // Cache the season data
+      // Cache the season data using StorageHandler
       const cacheKey = `tvShow_${tvId}_season_${selectedSeason}`;
-      localStorage.setItem(cacheKey, JSON.stringify(data));
-      localStorage.setItem(`${cacheKey}_timestamp`, new Date().getTime().toString());
+      safeSetItem(cacheKey, data);
+      safeSetItem(`${cacheKey}_timestamp`, new Date().getTime());
 
       // Preload episode images
       if (data.episodes) {
@@ -131,51 +129,35 @@ const SeasonEpisodes = ({ tvId, seasons }) => {
     } else {
       setActiveEpisode(episodeNumber);
     }
-  };
-
-  // Function to start watching an episode (load the player)
-  const startWatchingEpisode = () => {
+  };  // Function to start watching an episode (load the player)
+  const startWatchingEpisode = useCallback(() => {
     setIsPlayerLoading(true);
     setPlayerError(null);
-    setEmbedSource('default');
     setShowPlayer(true);
-  };
+  }, []);
 
   // Function to handle player load events
   const handlePlayerLoad = () => {
     setIsPlayerLoading(false);
     setPlayerError(null);
   };
-
   // Function to handle player errors
-  const handlePlayerError = () => {
+  const handlePlayerError = useCallback(() => {
     setIsPlayerLoading(false);
-
-    if (embedSource === 'default') {
-      // Try alternative source
-      setPlayerError("Primary player failed. Trying alternative source...");
-      setEmbedSource('alternative');
-    } else if (embedSource === 'alternative') {
-      // Try fallback source
-      setPlayerError("Alternative player failed. Trying fallback source...");
-      setEmbedSource('fallback');
-    } else {
-      setPlayerError("Failed to load video player. Please try again later or check if this episode is available.");
-    }
-  };
-
+    setPlayerError("Failed to load video player. Please try again later or check if this episode is available.");
+  }, []);
+  
+  // Track the current source
+  const [currentSource, setCurrentSource] = useState('pstream'); // 'pstream' or 'embedsu'
   // Generate the embed URL based on the current source
-  const getEmbedUrl = (episodeNumber) => {
-    switch(embedSource) {
-      case 'alternative':
-        return `https://vidsrc.xyz/embed/tv?tmdb=${tvId}&season=${selectedSeason}&episode=${episodeNumber}`;
-      case 'fallback':
-        return `https://www.2embed.cc/embedtv/${tvId}&s=${selectedSeason}&e=${episodeNumber}`;
-      case 'default':
-      default:
-        return `https://embed.su/embed/tv/${tvId}/${selectedSeason}/${episodeNumber}`;
+  const getEmbedUrl = useCallback((episodeNumber) => {
+    if (currentSource === 'pstream') {
+      return `https://iframe.pstream.org/embed/tmdb-tv-${tvId}/${selectedSeason}/${episodeNumber}?language=id`;
+    } else {
+      return `https://embed.su/embed/tv/${tvId}/${selectedSeason}/${episodeNumber}`;
     }
-  };
+  }, [tvId, selectedSeason, currentSource]);
+    // Note: Source switching is handled directly by the buttons
 
   // Use useMemo to prevent unnecessary recalculations
   const sortedSeasons = useMemo(() => {
@@ -208,14 +190,13 @@ const SeasonEpisodes = ({ tvId, seasons }) => {
               />
             ) : (
               <div className="bg-gray-200 dark:bg-gray-800 rounded w-full h-20 flex items-center justify-center">
-                <span className="text-gray-500 text-sm">No image</span>
+                <span className="text-gray-500 dark:text-gray-400 text-sm">No image</span>
               </div>
             )}
           </div>
 
           {/* Episode info */}
-          <div className="flex-grow ">
-            <h5 className="font-medium">
+          <div className="flex-grow ">            <h5 className="font-medium text-gray-900 dark:text-white">
               {episode.episode_number}. {episode.name || `Episode ${episode.episode_number}`}
             </h5>
             <p className="text-sm text-gray-600 dark:text-white mt-1">
@@ -241,7 +222,7 @@ const SeasonEpisodes = ({ tvId, seasons }) => {
             )}
             <button
               onClick={() => toggleEpisodeDetails(episode.episode_number)}
-              className="bg-gray-red- dark:bg-gray-800 dark:text-white hover:bg-gray-200 text-gray-800 px-3 py-1 rounded text-sm font-medium transition-colors"
+              className="bg-gray-200 dark:bg-gray-800 dark:text-white hover:bg-gray-300 text-gray-800 px-3 py-1 rounded text-sm font-medium transition-colors"
             >
               {activeEpisode === episode.episode_number ? 'Hide Details' : 'Details'}
             </button>
@@ -262,13 +243,11 @@ const SeasonEpisodes = ({ tvId, seasons }) => {
 
         {/* Episode expanded details */}
         {activeEpisode === episode.episode_number && (
-          <div className="border-t border-gray-200 p-4  dark:bg-card">
-            {/* Embed player - only load when explicitly requested */}
+          <div className="border-t border-gray-200 p-4  dark:bg-card">            {/* Embed player - only load when explicitly requested */}
             {showPlayer && (
               <div className="mb-4">
                 <h6 className="font-medium text-gray-900 dark:text-white mb-2">Watch Episode:</h6>
-                <div className="aspect-video overflow-hidden rounded-lg shadow-lg bg-black">
-                  <iframe
+                <div className="aspect-video overflow-hidden rounded-lg shadow-lg bg-black mb-3">                  <iframe
                     key={`player-${tvId}-${selectedSeason}-${episode.episode_number}-${Date.now()}`}
                     src={getEmbedUrl(episode.episode_number)}
                     width="100%"
@@ -279,13 +258,48 @@ const SeasonEpisodes = ({ tvId, seasons }) => {
                     title={`${seasonData.name || 'Season'} ${selectedSeason} Episode ${episode.episode_number}`}
                     onLoad={handlePlayerLoad}
                     onError={handlePlayerError}
-                  ></iframe>
+                  ></iframe>                </div>                {/* Source switching buttons */}
+                <div className="flex justify-center gap-3 mb-3">
+                  <button
+                    className={`px-3 py-1.5 rounded text-sm font-medium transition ${
+                      currentSource === 'pstream' 
+                        ? 'bg-bluee text-white' 
+                        : 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                    }`}
+                    onClick={() => {
+                      if (currentSource !== 'pstream') {
+                        setCurrentSource('pstream');
+                        setIsPlayerLoading(true);
+                      }
+                    }}
+                  >
+                    PStream
+                  </button>
+                  <button
+                    className={`px-3 py-1.5 rounded text-sm font-medium transition ${
+                      currentSource === 'embedsu' 
+                        ? 'bg-bluee text-white' 
+                        : 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                    }`}
+                    onClick={() => {
+                      if (currentSource !== 'embedsu') {
+                        setCurrentSource('embedsu');
+                        setIsPlayerLoading(true);
+                      }
+                    }}
+                  >
+                    Embed.su
+                  </button>
                 </div>
-                {isPlayerLoading && (
-                  <p className="text-xs text-gray-500 mt-2">Loading video player...</p>
-                )}
-                {playerError && (
-                  <p className="text-xs text-red-500 mt-2">{playerError}</p>
+                  {isPlayerLoading && (
+                  <div className="text-center">
+                    <div className="inline-block animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-500 mb-2"></div>
+                    <p className="text-xs text-gray-500 dark:text-gray-300">Loading player...</p>
+                  </div>
+                )}                {playerError && (
+                  <div className="text-center">
+                    <p className="text-xs text-red-500 dark:text-red-400">{playerError}</p>
+                  </div>
                 )}
               </div>
             )}
@@ -313,8 +327,7 @@ const SeasonEpisodes = ({ tvId, seasons }) => {
 
             {episode.guest_stars && episode.guest_stars.length > 0 && (
               <div className="mb-3">
-                <h6 className="font-medium text-gray-900 mb-1 dark:text-white">Guest Stars:</h6>
-                <p className="text-sm text-gray-600 dark:text-gray-300">
+                <h6 className="font-medium text-gray-900 mb-1 dark:text-white">Guest Stars:</h6>                <p className="text-sm text-gray-600 dark:text-gray-300">
                   {episode.guest_stars
                     .slice(0, 5)
                     .map(star => star.name)
@@ -326,8 +339,8 @@ const SeasonEpisodes = ({ tvId, seasons }) => {
 
             {episode.crew && episode.crew.length > 0 && (
               <div>
-                <h6 className="font-medium text-gray-900 mb-1">Director:</h6>
-                <p className="text-sm text-gray-600">
+                <h6 className="font-medium text-gray-900 mb-1 dark:text-white">Director:</h6>
+                <p className="text-sm text-gray-600 dark:text-gray-300">
                   {episode.crew
                     .filter(member => member.job === 'Director')
                     .map(director => director.name)
@@ -335,11 +348,10 @@ const SeasonEpisodes = ({ tvId, seasons }) => {
                 </p>
               </div>
             )}
-          </div>
-        )}
+          </div>        )}
       </div>
     ));
-  }, [seasonData?.episodes, activeEpisode, tvId, selectedSeason, isPlayerLoading, playerError, embedSource]);
+  }, [seasonData?.episodes, seasonData?.name, activeEpisode, tvId, selectedSeason, isPlayerLoading, playerError, showPlayer, getEmbedUrl, handlePlayerError, toggleEpisodeDetails, startWatchingEpisode, currentSource]);
 
   if (!seasons || seasons.length === 0) {
     return <div className="text-center py-4">No seasons information available</div>;
@@ -378,7 +390,7 @@ const SeasonEpisodes = ({ tvId, seasons }) => {
         {isLoading && (
           <div className="flex justify-center py-8">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-            <p className="ml-3 text-gray-600">Loading episodes...</p>
+            <p className="ml-3 text-gray-600 dark:text-gray-300">Loading episodes...</p>
           </div>
         )}
 
@@ -398,8 +410,7 @@ const SeasonEpisodes = ({ tvId, seasons }) => {
 
         {!isLoading && !error && seasonData && seasonData.episodes && (
           <div >
-            <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-800 p-2 rounded mb-4 border border-gray-100 dark:border-gray-600">
-              <h4 className="font-medium">
+            <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-800 p-2 rounded mb-4 border border-gray-100 dark:border-gray-600">              <h4 className="font-medium text-gray-900 dark:text-white">
                 {seasonData.name || `Season ${seasonData.season_number}`} • {seasonData.episodes.length} Episodes
               </h4>
               {seasonData.air_date && (
@@ -410,7 +421,7 @@ const SeasonEpisodes = ({ tvId, seasons }) => {
             </div>
 
             {seasonData.overview && (
-              <p className="text-gray-600 text-sm mb-4 bg-blue-50/30 p-3 rounded-md border-l-2 border-blue-400">
+              <p className="text-gray-600 dark:text-gray-300 text-sm mb-4 bg-blue-50 dark:bg-gray-700/50 p-3 rounded-md border-l-2 border-blue-400">
                 {seasonData.overview}
               </p>
             )}
@@ -426,7 +437,7 @@ const SeasonEpisodes = ({ tvId, seasons }) => {
             <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-gray-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <p className="text-gray-600">No episode information available for this season</p>
+            <p className="text-gray-600 dark:text-gray-300">No episode information available for this season</p>
           </div>
         )}
       </div>
@@ -435,3 +446,13 @@ const SeasonEpisodes = ({ tvId, seasons }) => {
 };
 
 export default SeasonEpisodes;
+
+SeasonEpisodes.propTypes = {
+  tvId: PropTypes.number.isRequired,
+  seasons: PropTypes.arrayOf(PropTypes.shape({
+    season_number: PropTypes.number.isRequired,
+    name: PropTypes.string,
+    air_date: PropTypes.string,
+    overview: PropTypes.string
+  })).isRequired
+};
